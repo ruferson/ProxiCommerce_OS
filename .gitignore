@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Expo & React Native
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Next.js
+apps/web/.next/
+apps/web/out/
+
+# Local databases & uploads
+*.db
+*.db-journal
+*.db-wal
+
+# Build outputs
+dist/
+build/
+
+# IDE & OS files
+.DS_Store
+.vscode/
+.idea/
+
+# Environment files (never commit secrets)
+.env
+.env.local
+.env*.local
+
+# Turbo cache
+.turbo/
