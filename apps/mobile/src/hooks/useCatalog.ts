@@ -4,6 +4,7 @@ import {
   getProducts,
   createProduct,
   updateProductStock,
+  updateProductDetails,
 } from "../services/catalogService";
 
 export interface UseCatalogReturn {
@@ -13,6 +14,10 @@ export interface UseCatalogReturn {
   loading: boolean;
   /** Adds a new product entity and triggers catalog refresh */
   addProduct: (
+    productData: Omit<Product, "created_at" | "updated_at">,
+  ) => Promise<void>;
+  /** Edits an existing product entity and triggers catalog refresh */
+  editProduct: (
     productData: Omit<Product, "created_at" | "updated_at">,
   ) => Promise<void>;
   /** Updates stock quantity for a specific product and triggers catalog refresh */
@@ -53,6 +58,13 @@ export function useCatalog(): UseCatalogReturn {
     await refreshProducts();
   };
 
+  const editProduct = async (
+    productData: Omit<Product, "created_at" | "updated_at">,
+  ): Promise<void> => {
+    await updateProductDetails(productData);
+    await refreshProducts();
+  };
+
   const setStock = async (
     productId: string,
     newStock: number,
@@ -65,6 +77,7 @@ export function useCatalog(): UseCatalogReturn {
     products,
     loading,
     addProduct,
+    editProduct,
     setStock,
     refreshProducts,
   };

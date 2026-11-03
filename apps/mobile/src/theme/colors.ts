@@ -3,11 +3,11 @@
  */
 export const colors = {
   primary: {
-    50: "#eff6ff",
-    100: "#dbeafe",
-    500: "#3b82f6",
-    600: "#2563eb",
-    700: "#1d4ed8",
+    50: "#eef2ff",
+    100: "#e0e7ff",
+    500: "#6366f1",
+    600: "#4f46e5",
+    700: "#4338ca",
   },
   neutral: {
     50: "#f8fafc",
@@ -28,6 +28,7 @@ export const colors = {
   background: {
     main: "#f8fafc",
     card: "#ffffff",
-    overlay: "rgba(15, 23, 42, 0.6)",
+    surfaceContainer: "#f1f5f9",
+    overlay: "rgba(15, 23, 42, 0.5)",
   },
 } as const;

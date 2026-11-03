@@ -7,20 +7,30 @@ import {
   FlatList,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import { Product } from "@proxi-commerce/types";
 import { initDatabase } from "./src/db/schema";
 import { useCatalog } from "./src/hooks/useCatalog";
+import { useCart } from "./src/hooks/useCart";
 import { Header } from "./src/components/layout/Header";
 import { ProductCard } from "./src/components/catalog/ProductCard";
-import { AddProductModal } from "./src/components/catalog/AddProductModal";
+import { ProductFormModal } from "./src/components/catalog/ProductFormModal";
+import { CartBar } from "./src/components/pos/CartBar";
+import { CheckoutModal } from "./src/components/pos/CheckoutModal";
 import { theme } from "./src/theme";
-import { StatusBar } from "expo-status-bar";
 
 const DEMO_STORE_ID = "store_local_001";
 
 export default function App() {
   const [isDbReady, setIsDbReady] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const { products, loading, addProduct, setStock } = useCatalog();
+  const [productModalVisible, setProductModalVisible] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [checkoutModalVisible, setCheckoutModalVisible] = useState(false);
+
+  const { products, loading, addProduct, editProduct, refreshProducts } =
+    useCatalog();
+  const { cart, total, totalItems, addToCart, removeFromCart, clearCart } =
+    useCart();
 
   useEffect(() => {
     initDatabase()
@@ -29,6 +39,31 @@ export default function App() {
         console.error("Error initializing local SQLite DB:", err),
       );
   }, []);
+
+  const handleOpenAddModal = () => {
+    setEditingProduct(null);
+    setProductModalVisible(true);
+  };
+
+  const handleOpenEditModal = (product: Product) => {
+    setEditingProduct(product);
+    setProductModalVisible(true);
+  };
+
+  const handleSaveProduct = async (
+    productData: Omit<Product, "created_at" | "updated_at">,
+  ) => {
+    if (editingProduct) {
+      await editProduct(productData);
+    } else {
+      await addProduct(productData);
+    }
+  };
+
+  const handleSuccessfulCheckout = async () => {
+    clearCart();
+    await refreshProducts();
+  };
 
   if (!isDbReady || loading) {
     return (
@@ -47,13 +82,16 @@ export default function App() {
         <Header
           title="ProxiCommerce OS"
           subtitle="Catálogo Local (Offline-First)"
-          onAddPress={() => setModalVisible(true)}
+          onAddPress={handleOpenAddModal}
         />
 
         <FlatList
           data={products}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            totalItems > 0 && styles.listContentWithCartBar,
+          ]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyTitle}>Sin productos registrados</Text>
@@ -62,16 +100,44 @@ export default function App() {
               </Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <ProductCard product={item} onUpdateStock={setStock} />
-          )}
+          renderItem={({ item }) => {
+            const cartItem = cart.find((c) => c.product.id === item.id);
+            const cartQuantity = cartItem ? cartItem.quantity : 0;
+
+            return (
+              <ProductCard
+                product={item}
+                cartQuantity={cartQuantity}
+                onAdd={() => addToCart(item)}
+                onRemove={() => removeFromCart(item.id)}
+                onEdit={() => handleOpenEditModal(item)}
+              />
+            );
+          }}
         />
 
-        <AddProductModal
-          visible={modalVisible}
-          onClose={() => setModalVisible(false)}
-          onSave={addProduct}
+        <CartBar
+          totalItems={totalItems}
+          totalPrice={total}
+          onCheckoutPress={() => setCheckoutModalVisible(true)}
+        />
+
+        <ProductFormModal
+          visible={productModalVisible}
+          onClose={() => setProductModalVisible(false)}
+          onSave={handleSaveProduct}
           storeId={DEMO_STORE_ID}
+          initialProduct={editingProduct}
+        />
+
+        <CheckoutModal
+          visible={checkoutModalVisible}
+          onClose={() => setCheckoutModalVisible(false)}
+          cart={cart}
+          total={total}
+          storeId={DEMO_STORE_ID}
+          onRemoveItem={removeFromCart}
+          onSuccess={handleSuccessfulCheckout}
         />
       </SafeAreaView>
     </SafeAreaProvider>
@@ -96,6 +162,9 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: theme.spacing.md,
+  },
+  listContentWithCartBar: {
+    paddingBottom: theme.spacing.xxl * 2,
   },
   emptyContainer: {
     padding: theme.spacing.xxl,

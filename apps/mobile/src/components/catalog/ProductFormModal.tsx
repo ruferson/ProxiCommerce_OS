@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   View,
@@ -16,33 +16,52 @@ import { Button } from "../ui/Button";
 import { TextInput } from "../ui/TextInput";
 import { theme } from "../../theme";
 
-export interface AddProductModalProps {
-  /** Modal visibility control */
+export interface ProductFormModalProps {
+  /** Modal visibility control state */
   visible: boolean;
-  /** Close modal callback handler */
+  /** Modal close trigger handler */
   onClose: () => void;
-  /** Save product callback */
+  /** Async callback to save created or updated product entity */
   onSave: (
     product: Omit<Product, "created_at" | "updated_at">,
   ) => Promise<void>;
-  /** Current store identifier */
+  /** Store entity identifier */
   storeId: string;
+  /** Initial product model for editing mode */
+  initialProduct?: Product | null;
 }
 
 /**
- * Modal dialog for capturing a product photo and details to store locally in SQLite.
+ * Expressive Bottom Sheet Modal dialog for product creation and edition.
  */
-export const AddProductModal: React.FC<AddProductModalProps> = ({
+export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   visible,
   onClose,
   onSave,
   storeId,
+  initialProduct,
 }) => {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const isEditing = Boolean(initialProduct);
+
+  useEffect(() => {
+    if (initialProduct) {
+      setTitle(initialProduct.title);
+      setPrice(initialProduct.price.toString());
+      setStock(initialProduct.stock_count.toString());
+      setImageUri(initialProduct.image_uri);
+    } else {
+      setTitle("");
+      setPrice("");
+      setStock("");
+      setImageUri(null);
+    }
+  }, [initialProduct, visible]);
 
   const takePhoto = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
@@ -81,8 +100,8 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
 
     try {
       setIsSaving(true);
-      const newProduct: Omit<Product, "created_at" | "updated_at"> = {
-        id: `prod_${Date.now()}`,
+      const productData: Omit<Product, "created_at" | "updated_at"> = {
+        id: initialProduct ? initialProduct.id : `prod_${Date.now()}`,
         store_id: storeId,
         title: title.trim(),
         price: parseFloat(price.replace(",", ".")),
@@ -90,13 +109,7 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
         image_uri: imageUri,
       };
 
-      await onSave(newProduct);
-
-      // Reset form fields
-      setTitle("");
-      setPrice("");
-      setStock("");
-      setImageUri(null);
+      await onSave(productData);
       onClose();
     } catch (error) {
       Alert.alert("Error", "No se pudo guardar el producto localmente.");
@@ -110,7 +123,9 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
       <View style={styles.overlay}>
         <View style={styles.modalContent}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            <Text style={styles.modalTitle}>Nuevo Producto</Text>
+            <Text style={styles.modalTitle}>
+              {isEditing ? "Editar Producto" : "Nuevo Producto"}
+            </Text>
 
             <TouchableOpacity
               activeOpacity={0.8}
@@ -162,7 +177,7 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({
                 style={styles.actionButton}
               />
               <Button
-                title="Guardar Localmente"
+                title={isEditing ? "Guardar Cambios" : "Guardar Localmente"}
                 variant="primary"
                 loading={isSaving}
                 onPress={handleSave}
@@ -184,8 +199,8 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: theme.colors.background.card,
-    borderTopLeftRadius: theme.borderRadius.xl,
-    borderTopRightRadius: theme.borderRadius.xl,
+    borderTopLeftRadius: theme.borderRadius.xxl,
+    borderTopRightRadius: theme.borderRadius.xxl,
     padding: theme.spacing.lg,
     maxHeight: "90%",
   },
@@ -201,8 +216,8 @@ const styles = StyleSheet.create({
   },
   imagePicker: {
     height: 160,
-    backgroundColor: theme.colors.neutral[100],
-    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.background.surfaceContainer,
+    borderRadius: theme.borderRadius.xl,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: theme.spacing.md,
@@ -235,5 +250,6 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+    borderRadius: theme.borderRadius.xl,
   },
 });

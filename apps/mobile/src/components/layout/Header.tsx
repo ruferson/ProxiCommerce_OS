@@ -4,16 +4,16 @@ import { Button } from "../ui/Button";
 import { theme } from "../../theme";
 
 export interface HeaderProps {
-  /** Title text displayed in header */
+  /** Header title text */
   title: string;
-  /** Subtitle text for context */
+  /** Subtitle context string */
   subtitle: string;
-  /** Action handler when clicking add button */
+  /** Primary action callback handler */
   onAddPress: () => void;
 }
 
 /**
- * Top app bar with brand header and primary call-to-action button.
+ * Expressive App Bar Header component.
  */
 export const Header: React.FC<HeaderProps> = ({
   title,
@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
-      <Button title="+ Nuevo" onPress={onAddPress} />
+      <Button title="+ Nuevo" onPress={onAddPress} style={styles.addButton} />
     </View>
   );
 };
@@ -55,5 +55,9 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.xs,
     color: theme.colors.neutral[500],
     marginTop: 2,
+  },
+  addButton: {
+    borderRadius: theme.borderRadius.xl,
+    paddingHorizontal: theme.spacing.md,
   },
 });

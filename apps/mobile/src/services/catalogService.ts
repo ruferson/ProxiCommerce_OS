@@ -55,3 +55,25 @@ export async function updateProductStock(
     [newStock, productId],
   );
 }
+
+/**
+ * Updates all editable details of a product in local SQLite storage.
+ *
+ * @param {Omit<Product, 'created_at' | 'updated_at'>} product - Product entity with updated data.
+ * @returns {Promise<void>}
+ */
+export async function updateProductDetails(
+  product: Omit<Product, "created_at" | "updated_at">,
+): Promise<void> {
+  const db = await SQLite.openDatabaseAsync(DB_NAME);
+  await db.runAsync(
+    `UPDATE products SET title = ?, price = ?, stock_count = ?, image_uri = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;`,
+    [
+      product.title,
+      product.price,
+      product.stock_count,
+      product.image_uri,
+      product.id,
+    ],
+  );
+}

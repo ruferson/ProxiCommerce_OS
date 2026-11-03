@@ -14,6 +14,8 @@ export const DB_NAME = "proxi_commerce.db";
 export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
 
+  await db.execAsync(`DROP TABLE IF EXISTS transactions;`);
+
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
@@ -41,7 +43,7 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
     CREATE TABLE IF NOT EXISTS transactions (
       id TEXT PRIMARY KEY NOT NULL,
       store_id TEXT NOT NULL,
-      type TEXT CHECK(type IN ('NFC', 'AI_SCAN', 'ONLINE_WEB')) NOT NULL,
+      type TEXT CHECK(type IN ('NFC', 'AI_SCAN', 'ONLINE_WEB', 'CASH')) NOT NULL,
       total REAL NOT NULL,
       timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
       items TEXT NOT NULL
