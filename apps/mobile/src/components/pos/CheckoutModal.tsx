@@ -1,3 +1,10 @@
+/**
+ * @file CheckoutModal.tsx
+ * @description Point-of-Sale (POS) ticket summary and checkout modal.
+ * Supports line-item review and removal, payment method selection (Cash vs. NFC/Card),
+ * cash tendered and change calculation, and atomic SQLite transaction recording.
+ */
+
 import React, { useState } from "react";
 import {
   Modal,
@@ -16,25 +23,31 @@ import { Card } from "../ui/Card";
 import { createTransaction } from "../../services/transactionService";
 import { theme } from "../../theme";
 
+/**
+ * Props for the `CheckoutModal` component.
+ */
 export interface CheckoutModalProps {
-  /** Modal visibility state */
+  /** Controls modal visibility */
   visible: boolean;
-  /** Modal close trigger */
+  /** Triggered when the user dismisses the modal */
   onClose: () => void;
-  /** Active cart line items */
+  /** Active cart line items included in the sale */
   cart: CartItem[];
-  /** Total sum in Euros */
+  /** Total sum of the order in Euros */
   total: number;
-  /** Callback on successful transaction completion */
+  /** Callback triggered upon successful transaction completion */
   onSuccess: () => void;
-  /** Store identifier */
+  /** Unique store identifier */
   storeId: string;
-  /** Cart item removal trigger */
+  /** Callback triggered to decrement or remove an item from the cart */
   onRemoveItem: (productId: string) => void;
 }
 
 /**
  * Modal dialog for inspecting sale breakdown, calculating cash change, and executing SQLite checkout.
+ *
+ * @param {CheckoutModalProps} props - Component properties.
+ * @returns {React.ReactElement} Rendered checkout modal.
  */
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   visible,
@@ -45,15 +58,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   storeId,
   onRemoveItem,
 }) => {
+  // Payment method selection state (defaults to Cash)
   const [paymentType, setPaymentType] = useState<TransactionType>("CASH");
+  // Cash tendered input string
   const [cashGiven, setCashGiven] = useState<string>("");
+  // Transaction processing loading indicator state
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Parse numerical cash amount, normalizing comma decimal separators
   const cashAmount = parseFloat(cashGiven.replace(",", ".")) || 0;
+  // Calculate change due when paying with cash
   const changeDue = Math.max(0, cashAmount - total);
+  // Ensure sufficient cash has been provided if CASH method is active
   const isValidCash = paymentType !== "CASH" || cashAmount >= total;
 
+  /**
+   * Finalizes the sale transaction, persists the order in SQLite, and decrements inventory.
+   */
   const handleConfirmSale = async () => {
+    // Prevent checkout if tendered cash is lower than total
     if (!isValidCash) {
       Alert.alert(
         "Efectivo insuficiente",
@@ -64,6 +87,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     try {
       setIsProcessing(true);
+      // Persist the transaction and update inventory counts
       await createTransaction({
         storeId,
         type: paymentType,
@@ -71,6 +95,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         items: cart,
       });
 
+      // Show completion confirmation with change calculation for cash sales
       Alert.alert(
         "¡Venta completada!",
         `Transacción registrada correctamente.${paymentType === "CASH" ? `\nCambio a devolver: ${changeDue.toFixed(2)} €` : ""}`,
@@ -89,8 +114,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
         <View style={styles.modalContent}>
+          {/* Modal Header */}
           <Text style={styles.modalTitle}>Resumen del Ticket</Text>
 
+          {/* Scrollable Cart Line Items List */}
           <ScrollView style={styles.itemList}>
             {cart.map((item) => (
               <Card key={item.product.id} padding="sm" style={styles.itemCard}>
@@ -105,6 +132,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <Text style={styles.itemSubtotal}>
                   {item.subtotal.toFixed(2)} €
                 </Text>
+                {/* Decrement or remove item */}
                 <IconButton
                   icon="-"
                   size="sm"
@@ -117,6 +145,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
           <View style={styles.sectionDivider} />
 
+          {/* Payment Method Selector Tabs */}
           <Text style={styles.sectionTitle}>Método de Pago</Text>
           <View style={styles.paymentSelector}>
             <TouchableOpacity
@@ -155,6 +184,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </TouchableOpacity>
           </View>
 
+          {/* Cash Tendered Input & Change Calculation Section */}
           {paymentType === "CASH" && (
             <View style={styles.cashContainer}>
               <TextInput
@@ -171,11 +201,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </View>
           )}
 
+          {/* Order Grand Total Display */}
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total a Cobrar:</Text>
             <Text style={styles.totalAmount}>{total.toFixed(2)} €</Text>
           </View>
 
+          {/* Action Buttons: Cancel and Confirm Sale */}
           <View style={styles.actions}>
             <Button
               title="Cancelar"
@@ -198,6 +230,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   );
 };
 
+// --- Stylesheet ---
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
@@ -331,3 +364,4 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+

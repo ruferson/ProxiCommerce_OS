@@ -1,3 +1,10 @@
+/**
+ * @file ProductFormModal.tsx
+ * @description Modal dialog for creating and editing products.
+ * Includes camera image capture with local filesystem persistence, input validation,
+ * and form state management for both creation and modification workflows.
+ */
+
 import React, { useState, useEffect } from "react";
 import {
   Modal,
@@ -16,39 +23,52 @@ import { Button } from "../ui/Button";
 import { TextInput } from "../ui/TextInput";
 import { theme } from "../../theme";
 
+/**
+ * Props for the `ProductFormModal` component.
+ */
 export interface ProductFormModalProps {
-  /** Modal visibility control state */
+  /** Controls modal visibility */
   visible: boolean;
-  /** Modal close trigger handler */
+  /** Triggered when the user dismisses the modal */
   onClose: () => void;
-  /** Async callback to save created or updated product entity */
+  /** Async callback to persist the created or updated product entity */
   onSave: (
     product: Omit<Product, "created_at" | "updated_at">,
   ) => Promise<void>;
-  /** Store entity identifier */
+  /** Optional async callback to delete a product entity (available when editing) */
+  onDelete?: (productId: string) => Promise<void>;
+  /** Unique store identifier associated with the product */
   storeId: string;
-  /** Initial product model for editing mode */
+  /** Optional initial product data when operating in edit mode */
   initialProduct?: Product | null;
 }
 
 /**
  * Expressive Bottom Sheet Modal dialog for product creation and edition.
+ *
+ * @param {ProductFormModalProps} props - Component properties.
+ * @returns {React.ReactElement} Rendered form modal.
  */
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   visible,
   onClose,
   onSave,
+  onDelete,
   storeId,
   initialProduct,
 }) => {
+  // Form input field state
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
+  // Check whether form is editing an existing item or creating a new one
   const isEditing = Boolean(initialProduct);
 
+  // Synchronize form fields whenever initialProduct or modal visibility changes
   useEffect(() => {
     if (initialProduct) {
       setTitle(initialProduct.title);
@@ -56,6 +76,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setStock(initialProduct.stock_count.toString());
       setImageUri(initialProduct.image_uri);
     } else {
+      // Reset form to blank inputs for fresh creation
       setTitle("");
       setPrice("");
       setStock("");
@@ -63,6 +84,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     }
   }, [initialProduct, visible]);
 
+  /**
+   * Prompts the user for camera permissions and captures a square product photo,
+   * copying it into local document storage for offline persistence.
+   */
   const takePhoto = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
@@ -84,12 +109,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const fileName = `product_${Date.now()}.jpg`;
       const destinationUri = `${FileSystem.documentDirectory}${fileName}`;
 
+      // Persist the captured image permanently into app's documents directory
       await FileSystem.copyAsync({ from: sourceUri, to: destinationUri });
       setImageUri(destinationUri);
     }
   };
 
+  /**
+   * Validates form input fields, sanitizes decimal prices, and invokes the `onSave` handler.
+   */
   const handleSave = async () => {
+    // Validate required fields
     if (!title.trim() || !price || !stock || !imageUri) {
       Alert.alert(
         "Campos incompletos",
@@ -118,15 +148,50 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     }
   };
 
+  /**
+   * Prompts user with a confirmation alert before permanently deleting the product.
+   */
+  const handleDelete = () => {
+    if (!initialProduct || !onDelete) return;
+
+    Alert.alert(
+      "Eliminar producto",
+      `¿Estás seguro de que deseas eliminar "${initialProduct.title}"? Esta acción no se puede deshacer.`,
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsDeleting(true);
+              await onDelete(initialProduct.id);
+              onClose();
+            } catch (error) {
+              Alert.alert("Error", "No se pudo eliminar el producto localmente.");
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
         <View style={styles.modalContent}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
+            {/* Modal Heading */}
             <Text style={styles.modalTitle}>
               {isEditing ? "Editar Producto" : "Nuevo Producto"}
             </Text>
 
+            {/* Photo Picker / Camera Trigger */}
             <TouchableOpacity
               activeOpacity={0.8}
               style={styles.imagePicker}
@@ -141,6 +206,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               )}
             </TouchableOpacity>
 
+            {/* Product Title Field */}
             <TextInput
               label="Nombre del producto"
               placeholder="Ej. Barra de pan rústica"
@@ -148,6 +214,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               onChangeText={setTitle}
             />
 
+            {/* Price and Stock Inputs in a Two-Column Row */}
             <View style={styles.row}>
               <View style={styles.column}>
                 <TextInput
@@ -169,21 +236,36 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               </View>
             </View>
 
+            {/* Modal Action Buttons: Cancel and Save */}
             <View style={styles.actions}>
               <Button
                 title="Cancelar"
                 variant="outline"
                 onPress={onClose}
+                disabled={isSaving || isDeleting}
                 style={styles.actionButton}
               />
               <Button
                 title={isEditing ? "Guardar Cambios" : "Guardar Localmente"}
                 variant="primary"
                 loading={isSaving}
+                disabled={isDeleting}
                 onPress={handleSave}
                 style={styles.actionButton}
               />
             </View>
+
+            {/* Optional Delete Button when editing an existing product */}
+            {isEditing && Boolean(onDelete) && (
+              <Button
+                title="Eliminar producto"
+                variant="danger"
+                loading={isDeleting}
+                disabled={isSaving}
+                onPress={handleDelete}
+                style={styles.deleteButton}
+              />
+            )}
           </ScrollView>
         </View>
       </View>
@@ -191,6 +273,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   );
 };
 
+// --- Stylesheet ---
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
@@ -252,4 +335,9 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: theme.borderRadius.xl,
   },
+  deleteButton: {
+    marginTop: theme.spacing.md,
+    borderRadius: theme.borderRadius.xl,
+  },
 });
+

@@ -1,3 +1,8 @@
+/**
+ * @file IconButton.tsx
+ * @description Compact touchable icon button for toolbars, counters, and micro-actions.
+ */
+
 import React from "react";
 import {
   TouchableOpacity,
@@ -7,17 +12,23 @@ import {
 } from "react-native";
 import { theme } from "../../theme";
 
+/**
+ * Props for the `IconButton` component.
+ */
 export interface IconButtonProps extends TouchableOpacityProps {
   /** Icon symbol or short character (e.g. "+", "-", "📷") */
   icon: string;
-  /** Visual variant */
+  /** Visual variant: default (subtle neutral), primary (brand indigo), or outline (bordered) */
   variant?: "default" | "primary" | "outline";
-  /** Button dimensions size */
+  /** Button dimensions size: sm (28px), md (36px), or lg (44px) */
   size?: "sm" | "md" | "lg";
 }
 
 /**
  * Compact circular/square touchable action button for icon-based triggers.
+ *
+ * @param {IconButtonProps} props - Component properties.
+ * @returns {React.ReactElement} Rendered icon button.
  */
 export const IconButton: React.FC<IconButtonProps> = ({
   icon,
@@ -27,6 +38,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
   disabled,
   ...props
 }) => {
+  // Determine variant styling states
   const isPrimary = variant === "primary";
   const isOutline = variant === "outline";
 
@@ -58,6 +70,7 @@ export const IconButton: React.FC<IconButtonProps> = ({
   );
 };
 
+// --- Stylesheet ---
 const styles = StyleSheet.create({
   base: {
     backgroundColor: theme.colors.neutral[100],
@@ -108,3 +121,4 @@ const styles = StyleSheet.create({
     color: theme.colors.neutral[700],
   },
 });
+

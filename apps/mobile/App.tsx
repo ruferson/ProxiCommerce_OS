@@ -27,10 +27,23 @@ export default function App() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [checkoutModalVisible, setCheckoutModalVisible] = useState(false);
 
-  const { products, loading, addProduct, editProduct, refreshProducts } =
-    useCatalog();
-  const { cart, total, totalItems, addToCart, removeFromCart, clearCart } =
-    useCart();
+  const {
+    products,
+    loading,
+    addProduct,
+    editProduct,
+    deleteProduct,
+    refreshProducts,
+  } = useCatalog();
+  const {
+    cart,
+    total,
+    totalItems,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+  } = useCart();
 
   useEffect(() => {
     initDatabase()
@@ -58,6 +71,16 @@ export default function App() {
     } else {
       await addProduct(productData);
     }
+  };
+
+  /**
+   * Deletes a product from local SQLite storage and evicts it from the active cart if present.
+   */
+  const handleDeleteProduct = async (productId: string) => {
+    // Remove deleted item from the active cart session to keep totals accurate
+    updateQuantity(productId, 0);
+    // Persist deletion to SQLite database
+    await deleteProduct(productId);
   };
 
   const handleSuccessfulCheckout = async () => {
@@ -126,6 +149,7 @@ export default function App() {
           visible={productModalVisible}
           onClose={() => setProductModalVisible(false)}
           onSave={handleSaveProduct}
+          onDelete={handleDeleteProduct}
           storeId={DEMO_STORE_ID}
           initialProduct={editingProduct}
         />

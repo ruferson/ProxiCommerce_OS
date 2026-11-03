@@ -1,3 +1,8 @@
+/**
+ * @file Button.tsx
+ * @description Standard reusable button component with multiple style variants and loading indicator support.
+ */
+
 import React from "react";
 import {
   TouchableOpacity,
@@ -8,17 +13,23 @@ import {
 } from "react-native";
 import { theme } from "../../theme";
 
+/**
+ * Props for the `Button` component.
+ */
 export interface ButtonProps extends TouchableOpacityProps {
   /** Text content displayed inside the button */
   title: string;
-  /** Visual hierarchy variant */
+  /** Visual hierarchy variant: primary (brand indigo), secondary (subtle grey), outline (bordered), or danger (red) */
   variant?: "primary" | "secondary" | "outline" | "danger";
-  /** Shows a loading spinner instead of text */
+  /** Shows a loading spinner instead of the text label */
   loading?: boolean;
 }
 
 /**
  * Atomic Button component for general UI actions.
+ *
+ * @param {ButtonProps} props - Component properties.
+ * @returns {React.ReactElement} Rendered button component.
  */
 export const Button: React.FC<ButtonProps> = ({
   title,
@@ -28,6 +39,7 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   ...props
 }) => {
+  // Variant style conditions
   const isSecondary = variant === "secondary";
   const isOutline = variant === "outline";
   const isDanger = variant === "danger";
@@ -47,10 +59,12 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {loading ? (
+        // Render spinner with contrasting color according to variant
         <ActivityIndicator
           color={isOutline ? theme.colors.primary[600] : "#ffffff"}
         />
       ) : (
+        // Render button label text
         <Text
           style={[
             styles.text,
@@ -66,6 +80,7 @@ export const Button: React.FC<ButtonProps> = ({
   );
 };
 
+// --- Stylesheet ---
 const styles = StyleSheet.create({
   base: {
     backgroundColor: theme.colors.primary[600],
@@ -105,3 +120,4 @@ const styles = StyleSheet.create({
     color: "#ffffff",
   },
 });
+

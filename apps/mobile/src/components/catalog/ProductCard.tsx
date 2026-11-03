@@ -1,3 +1,10 @@
+/**
+ * @file ProductCard.tsx
+ * @description Catalog product card component for Point-of-Sale (POS) lists.
+ * Features fluid layout animations, product thumbnail preview, stock counter badges,
+ * and an interactive quantity stepper for cart management.
+ */
+
 import React from "react";
 import {
   View,
@@ -14,6 +21,7 @@ import { Card } from "../ui/Card";
 import { IconButton } from "../ui/IconButton";
 import { theme } from "../../theme";
 
+// Enable experimental LayoutAnimation on Android for smooth quantity stepper transitions
 if (
   Platform.OS === "android" &&
   UIManager.setLayoutAnimationEnabledExperimental
@@ -21,6 +29,9 @@ if (
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+/**
+ * Props for the `ProductCard` component.
+ */
 export interface ProductCardProps {
   /** Product entity model */
   product: Product;
@@ -36,6 +47,9 @@ export interface ProductCardProps {
 
 /**
  * Material 3 Expressive Product Card component with fluid layout transitions for POS.
+ *
+ * @param {ProductCardProps} props - Component properties.
+ * @returns {React.ReactElement} Rendered product card item.
  */
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
@@ -46,11 +60,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   const isInCart = cartQuantity > 0;
 
+  /**
+   * Triggers layout animation before incrementing the cart quantity.
+   */
   const handleAdd = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     onAdd();
   };
 
+  /**
+   * Triggers layout animation before decrementing the cart quantity.
+   */
   const handleRemove = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     onRemove();
@@ -58,17 +78,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
   return (
     <Card style={[styles.card, isInCart && styles.cardActive]}>
+      {/* Tap card body to open edit dialog */}
       <TouchableOpacity
         style={styles.cardContent}
         activeOpacity={0.7}
         onPress={onEdit}
       >
+        {/* Product photo thumbnail */}
         <Image
           source={{ uri: product.image_uri }}
           style={styles.image}
           resizeMode="cover"
         />
 
+        {/* Textual product details: title, price, and current stock */}
         <View style={styles.infoContainer}>
           <Text style={styles.title} numberOfLines={1}>
             {product.title}
@@ -80,8 +103,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </View>
       </TouchableOpacity>
 
+      {/* Cart quantity control action container */}
       <View style={styles.actionContainer}>
         {isInCart ? (
+          // Active stepper pill when product is in cart
           <View style={styles.stepperPill}>
             <IconButton
               icon="-"
@@ -100,6 +125,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             />
           </View>
         ) : (
+          // Single add icon button when product is not yet in cart
           <IconButton
             icon="+"
             onPress={handleAdd}
@@ -113,6 +139,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   );
 };
 
+// --- Stylesheet ---
 const styles = StyleSheet.create({
   card: {
     marginBottom: theme.spacing.md,
@@ -203,3 +230,4 @@ const styles = StyleSheet.create({
     color: theme.colors.neutral[900],
   },
 });
+

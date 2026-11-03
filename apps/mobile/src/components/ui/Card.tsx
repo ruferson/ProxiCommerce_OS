@@ -1,9 +1,17 @@
+/**
+ * @file Card.tsx
+ * @description Surface card container with consistent border radius, background, and drop shadow.
+ */
+
 import React from "react";
 import { View, StyleSheet, ViewProps } from "react-native";
 import { theme } from "../../theme";
 
+/**
+ * Props for the `Card` component.
+ */
 export interface CardProps extends ViewProps {
-  /** Optional inner padding variant */
+  /** Inner padding variant: none (0), sm (8px), md (16px), or lg (24px) */
   padding?: "none" | "sm" | "md" | "lg";
   /** Children elements inside card container */
   children: React.ReactNode;
@@ -11,6 +19,9 @@ export interface CardProps extends ViewProps {
 
 /**
  * Surface card container with consistent border radius, background, and drop shadow.
+ *
+ * @param {CardProps} props - Component properties.
+ * @returns {React.ReactElement} Rendered card container.
  */
 export const Card: React.FC<CardProps> = ({
   padding = "md",
@@ -22,6 +33,7 @@ export const Card: React.FC<CardProps> = ({
     <View
       style={[
         styles.card,
+        // Apply appropriate padding preset based on prop
         padding === "none" && styles.paddingNone,
         padding === "sm" && styles.paddingSm,
         padding === "md" && styles.paddingMd,
@@ -35,6 +47,7 @@ export const Card: React.FC<CardProps> = ({
   );
 };
 
+// --- Stylesheet ---
 const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.colors.background.card,
@@ -60,3 +73,4 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
   },
 });
+

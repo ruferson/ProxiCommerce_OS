@@ -1,3 +1,8 @@
+/**
+ * @file TextInput.tsx
+ * @description Standard form text input component with label support and validation error messaging.
+ */
+
 import React from "react";
 import {
   View,
@@ -8,15 +13,21 @@ import {
 } from "react-native";
 import { theme } from "../../theme";
 
+/**
+ * Props for the `TextInput` component.
+ */
 export interface TextInputProps extends RNTextInputProps {
-  /** Form input label in Spanish */
+  /** Optional form input label displayed above the field */
   label?: string;
-  /** Error text displayed below input field */
+  /** Optional validation error message displayed below the input field */
   error?: string;
 }
 
 /**
  * Standardized TextInput component supporting labels and error states.
+ *
+ * @param {TextInputProps} props - Component properties.
+ * @returns {React.ReactElement} Rendered text input control.
  */
 export const TextInput: React.FC<TextInputProps> = ({
   label,
@@ -26,17 +37,23 @@ export const TextInput: React.FC<TextInputProps> = ({
 }) => {
   return (
     <View style={styles.container}>
+      {/* Optional top-aligned field label */}
       {label && <Text style={styles.label}>{label}</Text>}
+
+      {/* Underlying React Native text input element */}
       <RNTextInput
         placeholderTextColor={theme.colors.neutral[400]}
         style={[styles.input, error ? styles.inputError : null, style]}
         {...props}
       />
+
+      {/* Conditional validation error feedback */}
       {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 };
 
+// --- Stylesheet ---
 const styles = StyleSheet.create({
   container: {
     marginBottom: theme.spacing.md,
@@ -66,3 +83,4 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xs,
   },
 });
+
