@@ -31,10 +31,10 @@ export async function createProduct(
   product: Omit<Product, "created_at" | "updated_at">,
 ): Promise<void> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
-  // Insert the product entity with initial stock and photo URI
+  // Insert the product entity with initial stock, photo URI, and optional barcode
   await db.runAsync(
-    `INSERT INTO products (id, store_id, title, price, stock_count, image_uri) 
-     VALUES (?, ?, ?, ?, ?, ?);`,
+    `INSERT INTO products (id, store_id, title, price, stock_count, image_uri, barcode) 
+     VALUES (?, ?, ?, ?, ?, ?, ?);`,
     [
       product.id,
       product.store_id,
@@ -42,6 +42,7 @@ export async function createProduct(
       product.price,
       product.stock_count,
       product.image_uri,
+      product.barcode ?? null,
     ],
   );
 }
@@ -75,17 +76,35 @@ export async function updateProductDetails(
   product: Omit<Product, "created_at" | "updated_at">,
 ): Promise<void> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
-  // Update title, price, stock count, and image path while updating the timestamp
+  // Update title, price, stock count, barcode, and image path while updating the timestamp
   await db.runAsync(
-    `UPDATE products SET title = ?, price = ?, stock_count = ?, image_uri = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;`,
+    `UPDATE products SET title = ?, price = ?, stock_count = ?, image_uri = ?, barcode = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;`,
     [
       product.title,
       product.price,
       product.stock_count,
       product.image_uri,
+      product.barcode ?? null,
       product.id,
     ],
   );
+}
+
+/**
+ * Finds a product in SQLite by its unique barcode (EAN-13, UPC, etc.).
+ *
+ * @param {string} barcode - Scanned barcode text string.
+ * @returns {Promise<Product | null>} Matching product record or null if not registered.
+ */
+export async function getProductByBarcode(
+  barcode: string,
+): Promise<Product | null> {
+  const db = await SQLite.openDatabaseAsync(DB_NAME);
+  const row = await db.getFirstAsync<Product>(
+    `SELECT * FROM products WHERE barcode = ? LIMIT 1;`,
+    [barcode.trim()],
+  );
+  return row ?? null;
 }
 
 /**

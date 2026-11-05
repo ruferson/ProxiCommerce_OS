@@ -25,6 +25,7 @@ export interface Product {
   price: number;
   stock_count: number;
   image_uri: string;
+  barcode?: string;
   created_at?: string;
   updated_at?: string;
 }

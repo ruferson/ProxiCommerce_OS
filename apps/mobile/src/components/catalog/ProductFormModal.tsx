@@ -1,8 +1,8 @@
 /**
  * @file ProductFormModal.tsx
  * @description Modal dialog for creating and editing products.
- * Includes camera image capture with local filesystem persistence, input validation,
- * and form state management for both creation and modification workflows.
+ * Includes camera image capture with local filesystem persistence, barcode scanner integration,
+ * input validation, and form state management for both creation and modification workflows.
  */
 
 import React, { useState, useEffect } from "react";
@@ -18,14 +18,13 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Product } from "@proxi-commerce/types";
 import { Button } from "../ui/Button";
 import { TextInput } from "../ui/TextInput";
+import { BarcodeScannerModal } from "../pos/BarcodeScannerModal";
 import { theme } from "../../theme";
 
-/**
- * Props for the `ProductFormModal` component.
- */
 export interface ProductFormModalProps {
   /** Controls modal visibility */
   visible: boolean;
@@ -43,12 +42,6 @@ export interface ProductFormModalProps {
   initialProduct?: Product | null;
 }
 
-/**
- * Expressive Bottom Sheet Modal dialog for product creation and edition.
- *
- * @param {ProductFormModalProps} props - Component properties.
- * @returns {React.ReactElement} Rendered form modal.
- */
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   visible,
   onClose,
@@ -61,9 +54,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("");
+  const [barcode, setBarcode] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   // Check whether form is editing an existing item or creating a new one
   const isEditing = Boolean(initialProduct);
@@ -74,20 +69,18 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setTitle(initialProduct.title);
       setPrice(initialProduct.price.toString());
       setStock(initialProduct.stock_count.toString());
+      setBarcode(initialProduct.barcode || "");
       setImageUri(initialProduct.image_uri);
     } else {
       // Reset form to blank inputs for fresh creation
       setTitle("");
       setPrice("");
       setStock("");
+      setBarcode("");
       setImageUri(null);
     }
   }, [initialProduct, visible]);
 
-  /**
-   * Prompts the user for camera permissions and captures a square product photo,
-   * copying it into local document storage for offline persistence.
-   */
   const takePhoto = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
@@ -109,15 +102,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       const fileName = `product_${Date.now()}.jpg`;
       const destinationUri = `${FileSystem.documentDirectory}${fileName}`;
 
-      // Persist the captured image permanently into app's documents directory
       await FileSystem.copyAsync({ from: sourceUri, to: destinationUri });
       setImageUri(destinationUri);
     }
   };
 
-  /**
-   * Validates form input fields, sanitizes decimal prices, and invokes the `onSave` handler.
-   */
   const handleSave = async () => {
     // Validate required fields
     if (!title.trim() || !price || !stock || !imageUri) {
@@ -137,6 +126,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         price: parseFloat(price.replace(",", ".")),
         stock_count: parseInt(stock, 10),
         image_uri: imageUri,
+        barcode: barcode.trim() || undefined,
       };
 
       await onSave(productData);
@@ -148,9 +138,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     }
   };
 
-  /**
-   * Prompts user with a confirmation alert before permanently deleting the product.
-   */
   const handleDelete = () => {
     if (!initialProduct || !onDelete) return;
 
@@ -158,10 +145,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       "Eliminar producto",
       `¿Estás seguro de que deseas eliminar "${initialProduct.title}"? Esta acción no se puede deshacer.`,
       [
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
+        { text: "Cancelar", style: "cancel" },
         {
           text: "Eliminar",
           style: "destructive",
@@ -181,99 +165,145 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     );
   };
 
+  const handleBarcodeScanned = (scannedData: string) => {
+    setBarcode(scannedData);
+    setScannerOpen(false);
+  };
+
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
-        <View style={styles.modalContent}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            {/* Modal Heading */}
-            <Text style={styles.modalTitle}>
-              {isEditing ? "Editar Producto" : "Nuevo Producto"}
-            </Text>
+    <>
+      <Modal visible={visible} animationType="slide" transparent>
+        <View style={styles.overlay}>
+          <View style={styles.modalContent}>
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+              {/* Modal Heading */}
+              <Text style={styles.modalTitle}>
+                {isEditing ? "Editar Producto" : "Nuevo Producto"}
+              </Text>
 
-            {/* Photo Picker / Camera Trigger */}
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={styles.imagePicker}
-              onPress={takePhoto}
-            >
-              {imageUri ? (
-                <Image source={{ uri: imageUri }} style={styles.imagePreview} />
-              ) : (
-                <Text style={styles.imagePickerText}>
-                  📷 Tomar foto del producto
-                </Text>
+              {/* Photo Picker / Camera Trigger */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.imagePicker}
+                onPress={takePhoto}
+              >
+                {imageUri ? (
+                  <Image source={{ uri: imageUri }} style={styles.imagePreview} />
+                ) : (
+                  <View style={styles.imagePickerPlaceholder}>
+                    <MaterialCommunityIcons
+                      name="camera-plus-outline"
+                      size={28}
+                      color={theme.colors.neutral[500]}
+                    />
+                    <Text style={styles.imagePickerText}>
+                      Tomar foto del producto
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Product Title Field */}
+              <TextInput
+                label="Nombre del producto"
+                placeholder="Ej. Barra de pan rústica"
+                value={title}
+                onChangeText={setTitle}
+              />
+
+              {/* Barcode Field with Scanner Action */}
+              <View style={styles.barcodeFieldContainer}>
+                <View style={styles.barcodeInputWrapper}>
+                  <TextInput
+                    label="Código de barras (EAN / UPC)"
+                    placeholder="Ej. 8412345678901"
+                    keyboardType="default"
+                    value={barcode}
+                    onChangeText={setBarcode}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={styles.scanBarcodeButton}
+                  onPress={() => setScannerOpen(true)}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Escanear código de barras con la cámara"
+                >
+                  <MaterialCommunityIcons
+                    name="barcode-scan"
+                    size={22}
+                    color={theme.colors.primary[600]}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {/* Price and Stock Inputs in a Two-Column Row */}
+              <View style={styles.row}>
+                <View style={styles.column}>
+                  <TextInput
+                    label="Precio (€)"
+                    placeholder="1.50"
+                    keyboardType="decimal-pad"
+                    value={price}
+                    onChangeText={setPrice}
+                  />
+                </View>
+                <View style={styles.column}>
+                  <TextInput
+                    label="Stock inicial"
+                    placeholder="20"
+                    keyboardType="number-pad"
+                    value={stock}
+                    onChangeText={setStock}
+                  />
+                </View>
+              </View>
+
+              {/* Modal Action Buttons: Cancel and Save */}
+              <View style={styles.actions}>
+                <Button
+                  title="Cancelar"
+                  variant="outline"
+                  onPress={onClose}
+                  disabled={isSaving || isDeleting}
+                  style={styles.actionButton}
+                />
+                <Button
+                  title={isEditing ? "Guardar Cambios" : "Guardar Localmente"}
+                  variant="primary"
+                  loading={isSaving}
+                  disabled={isDeleting}
+                  onPress={handleSave}
+                  style={styles.actionButton}
+                />
+              </View>
+
+              {/* Optional Delete Button when editing an existing product */}
+              {isEditing && Boolean(onDelete) && (
+                <Button
+                  title="Eliminar producto"
+                  variant="danger"
+                  loading={isDeleting}
+                  disabled={isSaving}
+                  onPress={handleDelete}
+                  style={styles.deleteButton}
+                />
               )}
-            </TouchableOpacity>
-
-            {/* Product Title Field */}
-            <TextInput
-              label="Nombre del producto"
-              placeholder="Ej. Barra de pan rústica"
-              value={title}
-              onChangeText={setTitle}
-            />
-
-            {/* Price and Stock Inputs in a Two-Column Row */}
-            <View style={styles.row}>
-              <View style={styles.column}>
-                <TextInput
-                  label="Precio (€)"
-                  placeholder="1.50"
-                  keyboardType="decimal-pad"
-                  value={price}
-                  onChangeText={setPrice}
-                />
-              </View>
-              <View style={styles.column}>
-                <TextInput
-                  label="Stock inicial"
-                  placeholder="20"
-                  keyboardType="number-pad"
-                  value={stock}
-                  onChangeText={setStock}
-                />
-              </View>
-            </View>
-
-            {/* Modal Action Buttons: Cancel and Save */}
-            <View style={styles.actions}>
-              <Button
-                title="Cancelar"
-                variant="outline"
-                onPress={onClose}
-                disabled={isSaving || isDeleting}
-                style={styles.actionButton}
-              />
-              <Button
-                title={isEditing ? "Guardar Cambios" : "Guardar Localmente"}
-                variant="primary"
-                loading={isSaving}
-                disabled={isDeleting}
-                onPress={handleSave}
-                style={styles.actionButton}
-              />
-            </View>
-
-            {/* Optional Delete Button when editing an existing product */}
-            {isEditing && Boolean(onDelete) && (
-              <Button
-                title="Eliminar producto"
-                variant="danger"
-                loading={isDeleting}
-                disabled={isSaving}
-                onPress={handleDelete}
-                style={styles.deleteButton}
-              />
-            )}
-          </ScrollView>
+            </ScrollView>
+          </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+
+      {/* Embedded Barcode Scanner for Form */}
+      <BarcodeScannerModal
+        visible={scannerOpen}
+        title="Escanear Código del Artículo"
+        onBarcodeScanned={handleBarcodeScanned}
+        onClose={() => setScannerOpen(false)}
+      />
+    </>
   );
 };
 
-// --- Stylesheet ---
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
@@ -285,38 +315,62 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: theme.borderRadius.xxl,
     borderTopRightRadius: theme.borderRadius.xxl,
     padding: theme.spacing.lg,
-    maxHeight: "90%",
+    maxHeight: "92%",
   },
   scrollContent: {
-    paddingBottom: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
   },
   modalTitle: {
     fontSize: theme.typography.fontSize.xl,
     fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.neutral[900],
-    marginBottom: theme.spacing.lg,
+    color: theme.colors.neutral[800],
+    marginBottom: theme.spacing.md,
     textAlign: "center",
   },
   imagePicker: {
-    height: 160,
+    height: 150,
     backgroundColor: theme.colors.background.surfaceContainer,
     borderRadius: theme.borderRadius.xl,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: theme.spacing.md,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: theme.colors.neutral[300],
     borderStyle: "dashed",
     overflow: "hidden",
   },
+  imagePickerPlaceholder: {
+    alignItems: "center",
+    gap: theme.spacing.xs,
+  },
   imagePickerText: {
-    color: theme.colors.neutral[500],
-    fontSize: theme.typography.fontSize.md,
+    color: theme.colors.neutral[600],
+    fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.medium,
   },
   imagePreview: {
     width: "100%",
     height: "100%",
+  },
+  barcodeFieldContainer: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  barcodeInputWrapper: {
+    flex: 1,
+  },
+  scanBarcodeButton: {
+    width: 52,
+    height: 52,
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.primary[50],
+    borderWidth: 1,
+    borderColor: theme.colors.primary[200],
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
   },
   row: {
     flexDirection: "row",
@@ -340,4 +394,3 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.xl,
   },
 });
-

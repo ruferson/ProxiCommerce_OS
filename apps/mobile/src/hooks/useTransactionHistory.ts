@@ -20,14 +20,18 @@ export interface PaymentBreakdown {
 }
 
 /**
- * Complete daily Arqueo (cash register summary) snapshot.
+ * Complete daily Arqueo (cash register summary) snapshot (Cierre Z / Cierre X).
  */
 export interface DailyArqueo {
   /** ISO date string of the reporting day (YYYY-MM-DD) */
   date: string;
-  /** Total revenue across all payment methods */
+  /** Total net revenue across all payment methods (sales + refunds) */
   grandTotal: number;
-  /** Number of completed transactions */
+  /** Expected physical cash in drawer: CASH sales minus CASH refunds */
+  expectedCash: number;
+  /** Total collected via digital channels (NFC, AI_SCAN, ONLINE_WEB) */
+  totalDigital: number;
+  /** Number of completed transactions (sales and refunds) */
   transactionCount: number;
   /** Per-method revenue breakdown */
   breakdown: PaymentBreakdown[];
@@ -105,7 +109,8 @@ export function useTransactionHistory(): UseTransactionHistoryResult {
         total: number;
         timestamp: string;
         items: string;
-      }>(`SELECT id, store_id, type, total, timestamp, items
+        refund_for_id?: string | null;
+      }>(`SELECT id, store_id, type, total, timestamp, items, refund_for_id
           FROM transactions
           ORDER BY timestamp DESC;`);
 
@@ -115,7 +120,7 @@ export function useTransactionHistory(): UseTransactionHistoryResult {
         type: row.type as TransactionType,
         total: row.total,
         timestamp: row.timestamp,
-        // Deserialize JSON items snapshot; fall back to empty array on parse error
+        refund_for_id: row.refund_for_id,
         items: (() => {
           try {
             return JSON.parse(row.items) as TransactionItem[];
@@ -144,11 +149,18 @@ export function useTransactionHistory(): UseTransactionHistoryResult {
       const breakdown: PaymentBreakdown[] = todayRows.map((r) => ({
         type: r.type as TransactionType,
         count: r.count,
-        total: r.total,
+        total: r.total || 0,
       }));
 
       const grandTotal = breakdown.reduce((acc, b) => acc + b.total, 0);
       const transactionCount = breakdown.reduce((acc, b) => acc + b.count, 0);
+
+      // Specific cash drawer & digital breakdown
+      const cashEntry = breakdown.find((b) => b.type === "CASH");
+      const expectedCash = cashEntry ? cashEntry.total : 0;
+      const totalDigital = breakdown
+        .filter((b) => b.type !== "CASH")
+        .reduce((acc, b) => acc + b.total, 0);
 
       const today = new Date();
       const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
@@ -156,6 +168,8 @@ export function useTransactionHistory(): UseTransactionHistoryResult {
       setArqueo({
         date: dateStr,
         grandTotal,
+        expectedCash,
+        totalDigital,
         transactionCount,
         breakdown,
       });
@@ -170,4 +184,3 @@ export function useTransactionHistory(): UseTransactionHistoryResult {
 
   return { transactions, arqueo, loading, error, refresh };
 }
-

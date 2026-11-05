@@ -1,11 +1,15 @@
 /**
  * @file SalesHistoryModal.tsx
- * @description Sales History & Arqueo (Cash Register) bottom-sheet modal.
- * Displays all recorded transactions newest-first, with daily Arqueo summary.
- * Uses @expo/vector-icons MaterialCommunityIcons throughout (no emoji).
+ * @description Modal de consulta de Historial de Ventas y Tickets.
+ * Optimizado exclusivamente para la consulta ágil de transacciones durante la operativa:
+ * - Filtros rápidos por método de pago (Todos, Efectivo, Tarjeta, etc.).
+ * - Lista cronológica de tickets con desglose de artículos y fechas exactas.
+ * - Gestión directa de devoluciones con restauración de stock.
+ * - Banner compacto de acceso al Arqueo Z de fin de turno (sin duplicar la calculadora).
+ * Uses @expo/vector-icons MaterialCommunityIcons throughout (no emojis).
  */
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Modal,
   View,
@@ -19,10 +23,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Transaction, TransactionItem, TransactionType } from "@proxi-commerce/types";
 import { Card } from "../ui/Card";
 import { theme } from "../../theme";
-import {
-  useTransactionHistory,
-  PaymentBreakdown,
-} from "../../hooks/useTransactionHistory";
+import { useTransactionHistory } from "../../hooks/useTransactionHistory";
 
 // ---------------------------------------------------------------------------
 // Icon + color maps (no emojis)
@@ -58,79 +59,24 @@ const PAYMENT_COLOR_LIGHT: Record<TransactionType, string> = {
   ONLINE_WEB: theme.colors.payment.webLight,
 };
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+type FilterType = "ALL" | TransactionType;
+
+const FILTER_OPTIONS: { id: FilterType; label: string; icon: MCIconName }[] = [
+  { id: "ALL", label: "Todos", icon: "view-list" },
+  { id: "CASH", label: "Efectivo", icon: "cash-multiple" },
+  { id: "NFC", label: "Tarjeta", icon: "contactless-payment" },
+  { id: "AI_SCAN", label: "IA Scan", icon: "barcode-scan" },
+  { id: "ONLINE_WEB", label: "Web", icon: "web" },
+];
 
 export interface SalesHistoryModalProps {
   visible: boolean;
   onClose: () => void;
   /** Receives the transaction ID when the user taps "Devolver" on a row */
   onRefundPress: (transactionId: string) => void;
+  /** Triggers the dedicated full-screen Arqueo Z screen */
+  onOpenArqueoScreen?: () => void;
 }
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-/** Daily Arqueo summary card */
-const ArqueoCard: React.FC<{
-  date: string;
-  grandTotal: number;
-  transactionCount: number;
-  breakdown: PaymentBreakdown[];
-}> = ({ date, grandTotal, transactionCount, breakdown }) => (
-  <Card style={styles.arqueoCard}>
-    <View style={styles.arqueoHeader}>
-      <View style={styles.arqueoIconWrap}>
-        <MaterialCommunityIcons
-          name="chart-bar"
-          size={18}
-          color={theme.colors.primary[600]}
-        />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.arqueoTitle}>Arqueo del Día</Text>
-        <Text style={styles.arqueoDate}>{date}</Text>
-      </View>
-      <View style={styles.arqueoCountBadge}>
-        <Text style={styles.arqueoCountText}>{transactionCount} ventas</Text>
-      </View>
-    </View>
-
-    <Text style={styles.arqueoTotal}>{grandTotal.toFixed(2)} €</Text>
-
-    {breakdown.length > 0 && (
-      <View style={styles.breakdownContainer}>
-        {breakdown.map((b) => (
-          <View key={b.type} style={styles.breakdownRow}>
-            <View
-              style={[
-                styles.breakdownBadge,
-                { backgroundColor: PAYMENT_COLOR_LIGHT[b.type] },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name={PAYMENT_ICON[b.type]}
-                size={12}
-                color={PAYMENT_COLOR[b.type]}
-              />
-              <Text style={[styles.breakdownBadgeText, { color: PAYMENT_COLOR[b.type] }]}>
-                {PAYMENT_LABEL[b.type]}
-              </Text>
-            </View>
-            <Text style={styles.breakdownCount}>{b.count}×</Text>
-            <Text style={styles.breakdownAmount}>{b.total.toFixed(2)} €</Text>
-          </View>
-        ))}
-      </View>
-    )}
-
-    {transactionCount === 0 && (
-      <Text style={styles.emptyArqueo}>Sin ventas registradas hoy.</Text>
-    )}
-  </Card>
-);
 
 /** Single transaction row */
 const TransactionRow: React.FC<{
@@ -139,6 +85,7 @@ const TransactionRow: React.FC<{
 }> = ({ tx, onRefund }) => {
   const items = Array.isArray(tx.items) ? (tx.items as TransactionItem[]) : [];
   const timeLabel = tx.timestamp ? tx.timestamp.slice(11, 16) : "—";
+  const dateLabel = tx.timestamp ? tx.timestamp.slice(0, 10) : "";
   const isRefund = tx.total < 0;
   const isRefunded = !!tx.refund_for_id;
 
@@ -168,14 +115,14 @@ const TransactionRow: React.FC<{
           </Text>
         </View>
 
-        {/* Time */}
-        <Text style={styles.txTime}>{timeLabel}</Text>
+        {/* Time and date */}
+        <Text style={styles.txTime}>
+          {timeLabel} {dateLabel ? `· ${dateLabel}` : ""}
+        </Text>
 
         {/* Total */}
-        <Text
-          style={[styles.txTotal, isRefund && styles.txTotalRefund]}
-        >
-          {isRefund ? "" : ""}{tx.total.toFixed(2)} €
+        <Text style={[styles.txTotal, isRefund && styles.txTotalRefund]}>
+          {tx.total.toFixed(2)} €
         </Text>
       </View>
 
@@ -226,20 +173,24 @@ const TransactionRow: React.FC<{
   );
 };
 
-// ---------------------------------------------------------------------------
-// Main modal
-// ---------------------------------------------------------------------------
-
 export const SalesHistoryModal: React.FC<SalesHistoryModalProps> = ({
   visible,
   onClose,
   onRefundPress,
+  onOpenArqueoScreen,
 }) => {
   const { transactions, arqueo, loading, error, refresh } = useTransactionHistory();
+  const [selectedFilter, setSelectedFilter] = useState<FilterType>("ALL");
 
   useEffect(() => {
     if (visible) refresh();
   }, [visible, refresh]);
+
+  // Client-side filter
+  const filteredTransactions = useMemo(() => {
+    if (selectedFilter === "ALL") return transactions;
+    return transactions.filter((t) => t.type === selectedFilter);
+  }, [transactions, selectedFilter]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -249,7 +200,10 @@ export const SalesHistoryModal: React.FC<SalesHistoryModalProps> = ({
 
           {/* Header */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Historial de Ventas</Text>
+            <View>
+              <Text style={styles.modalTitle}>Historial de Ventas</Text>
+              <Text style={styles.modalSubtitle}>Consulta de tickets y devoluciones</Text>
+            </View>
             <TouchableOpacity
               onPress={onClose}
               style={styles.closeButton}
@@ -263,6 +217,34 @@ export const SalesHistoryModal: React.FC<SalesHistoryModalProps> = ({
               />
             </TouchableOpacity>
           </View>
+
+          {/* Banner de acceso rápido al Arqueo Z de jornada */}
+          {onOpenArqueoScreen && arqueo && (
+            <TouchableOpacity
+              style={styles.arqueoBanner}
+              onPress={onOpenArqueoScreen}
+              activeOpacity={0.8}
+            >
+              <View style={styles.arqueoBannerIcon}>
+                <MaterialCommunityIcons
+                  name="cash-register"
+                  size={20}
+                  color={theme.colors.primary[700]}
+                />
+              </View>
+              <View style={styles.arqueoBannerContent}>
+                <Text style={styles.arqueoBannerTitle}>Cierre de Caja y Arqueo Z</Text>
+                <Text style={styles.arqueoBannerSub}>
+                  Hoy: {arqueo.grandTotal.toFixed(2)} € · {arqueo.transactionCount} operaciones
+                </Text>
+              </View>
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={20}
+                color={theme.colors.primary[600]}
+              />
+            </TouchableOpacity>
+          )}
 
           {/* Loading */}
           {loading && (
@@ -294,20 +276,66 @@ export const SalesHistoryModal: React.FC<SalesHistoryModalProps> = ({
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.scrollContainer}
             >
-              {arqueo && (
-                <ArqueoCard
-                  date={arqueo.date}
-                  grandTotal={arqueo.grandTotal}
-                  transactionCount={arqueo.transactionCount}
-                  breakdown={arqueo.breakdown}
-                />
-              )}
+              {/* Payment Method Filters */}
+              <View style={styles.filtersSection}>
+                <Text style={styles.filtersLabel}>Filtrar por método</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.filterTabs}
+                >
+                  {FILTER_OPTIONS.map((f) => {
+                    const isSelected = selectedFilter === f.id;
+                    return (
+                      <TouchableOpacity
+                        key={f.id}
+                        style={[
+                          styles.filterTab,
+                          isSelected && styles.filterTabSelected,
+                        ]}
+                        onPress={() => setSelectedFilter(f.id)}
+                        activeOpacity={0.7}
+                      >
+                        <MaterialCommunityIcons
+                          name={f.icon}
+                          size={13}
+                          color={
+                            isSelected
+                              ? theme.colors.primary[700]
+                              : theme.colors.neutral[500]
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.filterTabText,
+                            isSelected && styles.filterTabTextSelected,
+                          ]}
+                        >
+                          {f.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
 
-              <Text style={styles.listSectionTitle}>
-                Todas las transacciones ({transactions.length})
-              </Text>
+              {/* List Section Header */}
+              <View style={styles.listHeaderRow}>
+                <Text style={styles.listSectionTitle}>
+                  Tickets Registrados ({filteredTransactions.length})
+                </Text>
+                {selectedFilter !== "ALL" && (
+                  <TouchableOpacity
+                    onPress={() => setSelectedFilter("ALL")}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.clearFilterText}>Ver todos</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
 
-              {transactions.length === 0 && (
+              {/* Empty state */}
+              {filteredTransactions.length === 0 && (
                 <View style={styles.emptyState}>
                   <View style={styles.emptyIconWrap}>
                     <MaterialCommunityIcons
@@ -316,14 +344,17 @@ export const SalesHistoryModal: React.FC<SalesHistoryModalProps> = ({
                       color={theme.colors.neutral[400]}
                     />
                   </View>
-                  <Text style={styles.emptyTitle}>Sin transacciones</Text>
+                  <Text style={styles.emptyTitle}>Sin tickets</Text>
                   <Text style={styles.emptySubtext}>
-                    Las ventas completadas aparecerán aquí.
+                    {selectedFilter === "ALL"
+                      ? "Las ventas realizadas aparecerán listadas aquí."
+                      : `No hay transacciones registradas con método ${PAYMENT_LABEL[selectedFilter as TransactionType] || selectedFilter}.`}
                   </Text>
                 </View>
               )}
 
-              {transactions.map((tx) => (
+              {/* Transactions List */}
+              {filteredTransactions.map((tx) => (
                 <TransactionRow
                   key={tx.id}
                   tx={tx}
@@ -338,9 +369,6 @@ export const SalesHistoryModal: React.FC<SalesHistoryModalProps> = ({
   );
 };
 
-// ---------------------------------------------------------------------------
-// Stylesheet
-// ---------------------------------------------------------------------------
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
@@ -369,12 +397,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
   modalTitle: {
     fontSize: theme.typography.fontSize.xl,
     fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.neutral[800],
+  },
+  modalSubtitle: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.neutral[500],
+    marginTop: 2,
   },
   closeButton: {
     width: 32,
@@ -383,6 +416,40 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.neutral[200],
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  // Banner compacto hacia Arqueo Z
+  arqueoBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: theme.colors.primary[50],
+    borderWidth: 1,
+    borderColor: theme.colors.primary[200],
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.sm + 2,
+    marginBottom: theme.spacing.md,
+    gap: theme.spacing.sm,
+  },
+  arqueoBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.primary[100],
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  arqueoBannerContent: {
+    flex: 1,
+  },
+  arqueoBannerTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.primary[700],
+  },
+  arqueoBannerSub: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.neutral[500],
+    marginTop: 2,
   },
 
   // Loading / error
@@ -419,100 +486,65 @@ const styles = StyleSheet.create({
   scrollContent: { flex: 1 },
   scrollContainer: { paddingBottom: theme.spacing.xl },
 
-  // Arqueo card
-  arqueoCard: {
-    marginBottom: theme.spacing.lg,
-    backgroundColor: theme.colors.primary[50],
-    borderWidth: 1,
-    borderColor: theme.colors.primary[100],
+  // Filters section
+  filtersSection: {
+    marginBottom: theme.spacing.md,
   },
-  arqueoHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing.sm,
+  filtersLabel: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.neutral[500],
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
     marginBottom: theme.spacing.xs,
   },
-  arqueoIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.primary[100],
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  arqueoTitle: {
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.primary[700],
-  },
-  arqueoDate: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.neutral[500],
-  },
-  arqueoCountBadge: {
-    backgroundColor: theme.colors.primary[600],
-    borderRadius: theme.borderRadius.full,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 3,
-  },
-  arqueoCountText: {
-    fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: "#ffffff",
-  },
-  arqueoTotal: {
-    fontSize: theme.typography.fontSize.xxl,
-    fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.primary[600],
-    marginBottom: theme.spacing.sm,
-  },
-  breakdownContainer: { gap: theme.spacing.xs },
-  breakdownRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  filterTabs: {
     gap: theme.spacing.xs,
+    paddingVertical: 2,
   },
-  breakdownBadge: {
-    flex: 1,
+  filterTab: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
     borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.neutral[100],
+    borderWidth: 1,
+    borderColor: theme.colors.neutral[200],
   },
-  breakdownBadgeText: {
+  filterTabSelected: {
+    backgroundColor: theme.colors.primary[50],
+    borderColor: theme.colors.primary[500],
+  },
+  filterTabText: {
     fontSize: theme.typography.fontSize.xs,
-    fontWeight: theme.typography.fontWeight.semibold,
+    fontWeight: theme.typography.fontWeight.medium,
+    color: theme.colors.neutral[600],
   },
-  breakdownCount: {
-    fontSize: theme.typography.fontSize.xs,
-    color: theme.colors.neutral[500],
-    width: 24,
-    textAlign: "right",
-  },
-  breakdownAmount: {
-    fontSize: theme.typography.fontSize.sm,
+  filterTabTextSelected: {
+    color: theme.colors.primary[700],
     fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.neutral[700],
-    minWidth: 72,
-    textAlign: "right",
-  },
-  emptyArqueo: {
-    fontSize: theme.typography.fontSize.sm,
-    color: theme.colors.neutral[400],
-    textAlign: "center",
-    marginTop: theme.spacing.xs,
   },
 
   // Section header
+  listHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: theme.spacing.sm,
+  },
   listSectionTitle: {
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.semibold,
     color: theme.colors.neutral[500],
-    marginBottom: theme.spacing.sm,
     letterSpacing: 0.5,
     textTransform: "uppercase",
+  },
+  clearFilterText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.primary[600],
+    fontWeight: theme.typography.fontWeight.semibold,
   },
 
   // Empty state
@@ -538,6 +570,7 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.neutral[400],
     textAlign: "center",
+    paddingHorizontal: theme.spacing.lg,
   },
 
   // Transaction row

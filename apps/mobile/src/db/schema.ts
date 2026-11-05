@@ -41,7 +41,7 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- Products table: contains catalog items, stock counters, prices, and photo URIs
+    -- Products table: contains catalog items, stock counters, prices, photo URIs, and barcodes
     CREATE TABLE IF NOT EXISTS products (
       id TEXT PRIMARY KEY NOT NULL,
       store_id TEXT NOT NULL,
@@ -49,6 +49,7 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       price REAL NOT NULL,
       stock_count INTEGER NOT NULL DEFAULT 0,
       image_uri TEXT NOT NULL,
+      barcode TEXT UNIQUE,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
@@ -66,6 +67,13 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       refund_for_id TEXT REFERENCES transactions(id)
     );
   `);
+
+  // Migrate existing products table if barcode column does not exist yet
+  try {
+    await db.execAsync(`ALTER TABLE products ADD COLUMN barcode TEXT UNIQUE;`);
+  } catch {
+    // Column already exists or already defined
+  }
 
   return db;
 }

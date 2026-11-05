@@ -5,6 +5,7 @@ import {
   View,
   ActivityIndicator,
   FlatList,
+  Alert,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -19,6 +20,9 @@ import { CartBar } from "./src/components/pos/CartBar";
 import { CheckoutModal } from "./src/components/pos/CheckoutModal";
 import { SalesHistoryModal } from "./src/components/pos/SalesHistoryModal";
 import { RefundModal } from "./src/components/pos/RefundModal";
+import { ArqueoScreenModal } from "./src/components/pos/ArqueoScreenModal";
+import { BarcodeScannerModal } from "./src/components/pos/BarcodeScannerModal";
+import { getProductByBarcode } from "./src/services/catalogService";
 import { theme } from "./src/theme";
 
 const DEMO_STORE_ID = "store_local_001";
@@ -29,6 +33,8 @@ export default function App() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [checkoutModalVisible, setCheckoutModalVisible] = useState(false);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  const [arqueoModalVisible, setArqueoModalVisible] = useState(false);
+  const [barcodeScannerVisible, setBarcodeScannerVisible] = useState(false);
   const [refundTransactionId, setRefundTransactionId] = useState<string | null>(null);
 
   const {
@@ -92,6 +98,58 @@ export default function App() {
     await refreshProducts();
   };
 
+  /**
+   * Fast POS Barcode Scanner Handler.
+   * Looks up product in SQLite by scanned barcode:
+   * - If found and stock > 0: adds directly to cart.
+   * - If found and out of stock: notifies user.
+   * - If not found: offers to register it directly as a new product with the scanned barcode pre-filled.
+   */
+  const handleBarcodeScannedPOS = async (scannedData: string) => {
+    try {
+      const match = await getProductByBarcode(scannedData);
+      if (match) {
+        if (match.stock_count <= 0) {
+          Alert.alert(
+            "Sin stock disponible",
+            `El producto "${match.title}" no dispone de existencias para venta.`,
+          );
+          return;
+        }
+        addToCart(match);
+        setBarcodeScannerVisible(false);
+      } else {
+        // Product not registered yet
+        Alert.alert(
+          "Producto no encontrado",
+          `No existe ningún artículo registrado con el código:\n${scannedData}\n\n¿Deseas darlo de alta ahora?`,
+          [
+            { text: "Seguir escaneando", style: "cancel" },
+            {
+              text: "Crear Producto",
+              style: "default",
+              onPress: () => {
+                setBarcodeScannerVisible(false);
+                setEditingProduct({
+                  id: `prod_${Date.now()}`,
+                  store_id: DEMO_STORE_ID,
+                  title: "",
+                  price: 0,
+                  stock_count: 1,
+                  image_uri: "",
+                  barcode: scannedData,
+                });
+                setProductModalVisible(true);
+              },
+            },
+          ],
+        );
+      }
+    } catch (err) {
+      console.error("Error al buscar producto por código de barras:", err);
+    }
+  };
+
   if (!isDbReady || loading) {
     return (
       <View style={styles.centerContainer}>
@@ -110,7 +168,9 @@ export default function App() {
           title="ProxiCommerce OS"
           subtitle="Catálogo Local (Offline-First)"
           onAddPress={handleOpenAddModal}
+          onScanPress={() => setBarcodeScannerVisible(true)}
           onHistoryPress={() => setHistoryModalVisible(true)}
+          onArqueoPress={() => setArqueoModalVisible(true)}
         />
 
         <FlatList
@@ -176,6 +236,15 @@ export default function App() {
             setHistoryModalVisible(false);
             setRefundTransactionId(txId);
           }}
+          onOpenArqueoScreen={() => {
+            setHistoryModalVisible(false);
+            setArqueoModalVisible(true);
+          }}
+        />
+
+        <ArqueoScreenModal
+          visible={arqueoModalVisible}
+          onClose={() => setArqueoModalVisible(false)}
         />
 
         <RefundModal
@@ -186,6 +255,13 @@ export default function App() {
             setRefundTransactionId(null);
             await refreshProducts();
           }}
+        />
+
+        <BarcodeScannerModal
+          visible={barcodeScannerVisible}
+          title="Cobro Rápido en Caja"
+          onBarcodeScanned={handleBarcodeScannedPOS}
+          onClose={() => setBarcodeScannerVisible(false)}
         />
       </SafeAreaView>
     </SafeAreaProvider>

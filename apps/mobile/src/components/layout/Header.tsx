@@ -19,8 +19,12 @@ export interface HeaderProps {
   subtitle: string;
   /** Primary action callback handler for adding new entities */
   onAddPress: () => void;
-  /** Optional callback to open the sales history & arqueo panel */
+  /** Optional callback to open the barcode scanner for rapid cart scanning */
+  onScanPress?: () => void;
+  /** Optional callback to open the sales history panel */
   onHistoryPress?: () => void;
+  /** Optional callback to open the dedicated full-screen Arqueo Z screen */
+  onArqueoPress?: () => void;
 }
 
 /**
@@ -33,7 +37,9 @@ export const Header: React.FC<HeaderProps> = ({
   title,
   subtitle,
   onAddPress,
+  onScanPress,
   onHistoryPress,
+  onArqueoPress,
 }) => {
   return (
     <View style={styles.header}>
@@ -43,25 +49,62 @@ export const Header: React.FC<HeaderProps> = ({
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
 
-      {/* History icon button (shown when handler is provided) */}
-      {onHistoryPress && (
-        <TouchableOpacity
-          onPress={onHistoryPress}
-          style={styles.historyButton}
-          activeOpacity={0.7}
-          accessibilityLabel="Ver historial de ventas"
-          accessibilityRole="button"
-        >
-          <MaterialCommunityIcons
-            name="receipt-text-outline"
-            size={20}
-            color={theme.colors.primary[600]}
-          />
-        </TouchableOpacity>
-      )}
+      {/* Action group */}
+      <View style={styles.actionsGroup}>
+        {/* Barcode scanner icon button for quick POS cart scanning */}
+        {onScanPress && (
+          <TouchableOpacity
+            onPress={onScanPress}
+            style={styles.iconHeaderBtn}
+            activeOpacity={0.7}
+            accessibilityLabel="Escanear código de barras para añadir al carrito"
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons
+              name="barcode-scan"
+              size={20}
+              color={theme.colors.primary[600]}
+            />
+          </TouchableOpacity>
+        )}
 
-      {/* Primary header action trigger */}
-      <Button title="+ Nuevo" onPress={onAddPress} style={styles.addButton} />
+        {/* Arqueo Z icon button */}
+        {onArqueoPress && (
+          <TouchableOpacity
+            onPress={onArqueoPress}
+            style={styles.iconHeaderBtn}
+            activeOpacity={0.7}
+            accessibilityLabel="Abrir Cierre de Caja y Arqueo Z"
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons
+              name="cash-register"
+              size={20}
+              color={theme.colors.payment.cash}
+            />
+          </TouchableOpacity>
+        )}
+
+        {/* History icon button */}
+        {onHistoryPress && (
+          <TouchableOpacity
+            onPress={onHistoryPress}
+            style={styles.iconHeaderBtn}
+            activeOpacity={0.7}
+            accessibilityLabel="Ver historial de ventas"
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons
+              name="receipt-text-outline"
+              size={20}
+              color={theme.colors.neutral[600]}
+            />
+          </TouchableOpacity>
+        )}
+
+        {/* Primary header action trigger */}
+        <Button title="+ Nuevo" onPress={onAddPress} style={styles.addButton} />
+      </View>
     </View>
   );
 };
@@ -80,7 +123,7 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
-    marginRight: theme.spacing.md,
+    marginRight: theme.spacing.sm,
   },
   title: {
     fontSize: theme.typography.fontSize.xl,
@@ -92,14 +135,20 @@ const styles = StyleSheet.create({
     color: theme.colors.neutral[500],
     marginTop: 2,
   },
-  historyButton: {
+  actionsGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.xs,
+  },
+  iconHeaderBtn: {
     width: 40,
     height: 40,
     borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.primary[100],
+    backgroundColor: theme.colors.neutral[100],
+    borderWidth: 1,
+    borderColor: theme.colors.neutral[200],
     alignItems: "center",
     justifyContent: "center",
-    marginRight: theme.spacing.sm,
   },
   addButton: {
     borderRadius: theme.borderRadius.xl,
