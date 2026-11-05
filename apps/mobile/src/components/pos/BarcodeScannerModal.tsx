@@ -1,8 +1,8 @@
 /**
  * @file BarcodeScannerModal.tsx
- * @description Modal a pantalla completa para el escaneo nativo de códigos de barras (EAN-13, EAN-8, UPC, Code128, QR)
- * utilizando CameraView de expo-camera.
- * Diseñado con soporte de retícula de enfoque interactiva, feedback visual, linterna y selector de modo.
+ * @description Full-screen modal for native barcode scanning (EAN-13, EAN-8, UPC, Code128, QR)
+ * using CameraView from expo-camera.
+ * Designed with interactive focus grid support, visual feedback, flashlight, and mode selector.
  */
 
 import React, { useState, useEffect } from "react";
@@ -16,19 +16,23 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CameraView, useCameraPermissions, BarcodeScanningResult } from "expo-camera";
+import {
+  CameraView,
+  useCameraPermissions,
+  BarcodeScanningResult,
+} from "expo-camera";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Button } from "../ui/Button";
 import { theme } from "../../theme";
 
 export interface BarcodeScannerModalProps {
-  /** Controla la visibilidad del escáner */
+  /** Controls the visibility of the scanner */
   visible: boolean;
-  /** Título o instrucción superior (ej: "Escanear para Cobrar" o "Asignar Código al Producto") */
+  /** Top title or instruction (e.g., "Scan to Charge" or "Assign Code to Product") */
   title?: string;
-  /** Callback disparado al detectar un código */
+  /** Callback triggered when a code is detected */
   onBarcodeScanned: (data: string, type: string) => void;
-  /** Callback para cerrar el escáner */
+  /** Callback to close the scanner */
   onClose: () => void;
 }
 
@@ -64,7 +68,11 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+    >
       <SafeAreaView style={styles.container}>
         {/* Top Header */}
         <View style={styles.header}>
@@ -95,7 +103,9 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         {!permission ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={theme.colors.primary[500]} />
-            <Text style={styles.centerText}>Verificando permisos de cámara...</Text>
+            <Text style={styles.centerText}>
+              Verificando permisos de cámara...
+            </Text>
           </View>
         ) : !permission.granted ? (
           <View style={styles.centerContainer}>
@@ -106,9 +116,12 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 color={theme.colors.status.warning}
               />
             </View>
-            <Text style={styles.permissionTitle}>Permiso de Cámara Requerido</Text>
+            <Text style={styles.permissionTitle}>
+              Permiso de Cámara Requerido
+            </Text>
             <Text style={styles.permissionSubtitle}>
-              Para leer códigos de barras (EAN, UPC, etc.) se necesita acceso a la cámara del dispositivo.
+              Para leer códigos de barras (EAN, UPC, etc.) se necesita acceso a
+              la cámara del dispositivo.
             </Text>
             <Button
               title="Conceder Permiso"
@@ -126,7 +139,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         ) : (
           <View style={styles.cameraWrapper}>
             <CameraView
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               facing="back"
               enableTorch={torchEnabled}
               barcodeScannerSettings={{
@@ -141,7 +154,9 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                   "qr",
                 ],
               }}
-              onBarcodeScanned={scannedRecently ? undefined : handleBarcodeScanned}
+              onBarcodeScanned={
+                scannedRecently ? undefined : handleBarcodeScanned
+              }
             />
 
             {/* Visual Viewfinder Overlay */}
@@ -247,7 +262,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   overlayMask: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   maskTop: {
     flex: 1,
@@ -327,4 +342,3 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
 });
-

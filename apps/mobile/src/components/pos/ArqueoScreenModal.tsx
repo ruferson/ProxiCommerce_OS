@@ -1,12 +1,12 @@
 /**
  * @file ArqueoScreenModal.tsx
- * @description Pantalla completa dedicada para el Cierre de Caja (Arqueo Z / X).
- * Diseñada específicamente para el cierre de turno o fin de jornada del comerciante:
- * - Vista espaciosa a pantalla completa (full screen) con barra de navegación limpia.
- * - Desglose visual de facturación neta, ventas brutas y devoluciones.
- * - Cuadre de gaveta física: entrada de efectivo contado, cálculo de descuadre y layout responsivo sin desbordamientos.
- * - Resumen fiscal/operativo de canales digitales.
- * - Paleta pastel relajante para final de jornada y soporte de cierre formal.
+ * @description Full-screen modal dedicated to the Cash Register Closure (Arqueo Z / X).
+ * Designed specifically for the merchant's end-of-shift or end-of-day closure:
+ * - Spacious full-screen view with a clean navigation bar.
+ * - Visual breakdown of net revenue, gross sales, and refunds.
+ * - Physical drawer balancing: counted cash input, discrepancy calculation, and responsive layout.
+ * - Fiscal/operational summary of digital channels.
+ * - Relaxing pastel palette for the end of the day and formal closure support.
  */
 
 import React, { useState, useEffect } from "react";
@@ -85,7 +85,7 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
   const hasCountedInput = countedCash.trim().length > 0;
   const discrepancy = countedNum - expectedCash;
 
-  // Calculo de ventas brutas vs devoluciones
+  // Calculation of gross sales vs refunds
   const totalSales = transactions
     .filter((t) => t.total > 0)
     .reduce((acc, t) => acc + t.total, 0);
@@ -119,7 +119,11 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+    >
       <SafeAreaView style={styles.safeArea}>
         {/* Top Header Bar */}
         <View style={styles.topBar}>
@@ -156,7 +160,9 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
         {loading || !arqueo ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={theme.colors.primary[600]} />
-            <Text style={styles.loadingText}>Calculando balance de caja...</Text>
+            <Text style={styles.loadingText}>
+              Calculando balance de caja...
+            </Text>
           </View>
         ) : (
           <ScrollView
@@ -181,7 +187,9 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
               </View>
 
               <Text style={styles.heroLabel}>Total Neto Facturado</Text>
-              <Text style={styles.heroAmount}>{arqueo.grandTotal.toFixed(2)} €</Text>
+              <Text style={styles.heroAmount}>
+                {arqueo.grandTotal.toFixed(2)} €
+              </Text>
 
               {/* Sub-bar: Gross sales vs Refunds */}
               <View style={styles.heroMetricsRow}>
@@ -201,7 +209,7 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
               </View>
             </Card>
 
-            {/* SECCIÓN 1: Cuadre de Gaveta Física */}
+            {/* SECTION 1: Physical Cash Drawer Balancing */}
             <View style={styles.sectionHeader}>
               <MaterialCommunityIcons
                 name="cash-register"
@@ -213,7 +221,9 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
 
             <Card style={styles.drawerCard}>
               <View style={styles.drawerColumn}>
-                <Text style={styles.drawerLabel}>Efectivo Teórico en Gaveta</Text>
+                <Text style={styles.drawerLabel}>
+                  Efectivo Teórico en Gaveta
+                </Text>
                 <Text style={styles.drawerSub}>
                   Total de ventas en efectivo menos devoluciones
                 </Text>
@@ -230,7 +240,9 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
               </View>
 
               <View style={styles.inputSection}>
-                <Text style={styles.inputTitle}>Efectivo Real Contado en Gaveta</Text>
+                <Text style={styles.inputTitle}>
+                  Efectivo Real Contado en Gaveta
+                </Text>
                 <View style={styles.inputRow}>
                   <View style={styles.currencyPrefix}>
                     <Text style={styles.currencyPrefixText}>€</Text>
@@ -258,7 +270,7 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
                 </View>
               </View>
 
-              {/* Resultado del Cuadre */}
+              {/* Balancing Result */}
               {hasCountedInput && (
                 <View
                   style={[
@@ -328,7 +340,7 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
               )}
             </Card>
 
-            {/* SECCIÓN 2: Desglose de Canales Digitales */}
+            {/* SECTION 2: Digital Channels Breakdown */}
             <View style={styles.sectionHeader}>
               <MaterialCommunityIcons
                 name="credit-card-outline"
@@ -336,7 +348,8 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
                 color={theme.colors.payment.nfc}
               />
               <Text style={styles.sectionTitle}>
-                Cobros Digitales y Bancarios ({arqueo.totalDigital.toFixed(2)} €)
+                Cobros Digitales y Bancarios ({arqueo.totalDigital.toFixed(2)}{" "}
+                €)
               </Text>
             </View>
 
@@ -358,10 +371,16 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
                           color={PAYMENT_COLOR[b.type]}
                         />
                       </View>
-                      <Text style={styles.digitalCountBadge}>{b.count} cobros</Text>
+                      <Text style={styles.digitalCountBadge}>
+                        {b.count} cobros
+                      </Text>
                     </View>
-                    <Text style={styles.digitalLabel}>{PAYMENT_LABEL[b.type]}</Text>
-                    <Text style={styles.digitalAmount}>{b.total.toFixed(2)} €</Text>
+                    <Text style={styles.digitalLabel}>
+                      {PAYMENT_LABEL[b.type]}
+                    </Text>
+                    <Text style={styles.digitalAmount}>
+                      {b.total.toFixed(2)} €
+                    </Text>
                   </Card>
                 ))}
 
@@ -374,7 +393,7 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
               )}
             </View>
 
-            {/* SECCIÓN 3: Observaciones de Cierre */}
+            {/* SECTION 3: Closure Observations */}
             <View style={styles.sectionHeader}>
               <MaterialCommunityIcons
                 name="notebook-edit-outline"
@@ -396,7 +415,7 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
               />
             </Card>
 
-            {/* Botón de Confirmación de Cierre */}
+            {/* Closure Confirmation Button */}
             <View style={styles.actions}>
               <Button
                 title="Cerrar y Validar Arqueo Z"
