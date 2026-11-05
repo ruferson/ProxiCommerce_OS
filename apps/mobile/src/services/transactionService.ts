@@ -36,8 +36,14 @@ export async function createTransaction(
   const db = await SQLite.openDatabaseAsync(DB_NAME);
   // Generate a client-side unique transaction identifier with timestamp prefix
   const transactionId = `tx_${Date.now()}`;
-  // Serialize the items array into JSON for relational column storage
-  const serializedItems = JSON.stringify(input.items);
+  // Standardize the snapshot to TransactionItem[] format
+  const transactionItems = input.items.map((item) => ({
+    product_id: item.product.id,
+    title: item.product.title,
+    quantity: item.quantity,
+    unit_price: item.product.price,
+  }));
+  const serializedItems = JSON.stringify(transactionItems);
 
   // Wrap both insertions and inventory adjustments inside an atomic SQLite transaction
   await db.withTransactionAsync(async () => {

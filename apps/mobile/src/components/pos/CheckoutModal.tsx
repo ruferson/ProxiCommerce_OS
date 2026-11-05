@@ -15,6 +15,7 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { CartItem, TransactionType } from "@proxi-commerce/types";
 import { Button } from "../ui/Button";
 import { TextInput } from "../ui/TextInput";
@@ -115,7 +116,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       <View style={styles.overlay}>
         <View style={styles.modalContent}>
           {/* Modal Header */}
-          <Text style={styles.modalTitle}>Resumen del Ticket</Text>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Resumen del Ticket</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.7}>
+              <MaterialCommunityIcons name="close" size={18} color={theme.colors.neutral[600]} />
+            </TouchableOpacity>
+          </View>
 
           {/* Scrollable Cart Line Items List */}
           <ScrollView style={styles.itemList}>
@@ -156,13 +162,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               ]}
               onPress={() => setPaymentType("CASH")}
             >
+              <MaterialCommunityIcons
+                name="cash-multiple"
+                size={18}
+                color={paymentType === "CASH" ? theme.colors.primary[700] : theme.colors.neutral[500]}
+              />
               <Text
                 style={[
                   styles.paymentText,
                   paymentType === "CASH" && styles.paymentSelectedText,
                 ]}
               >
-                💵 Efectivo
+                Efectivo
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -173,13 +184,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               ]}
               onPress={() => setPaymentType("NFC")}
             >
+              <MaterialCommunityIcons
+                name="contactless-payment"
+                size={18}
+                color={paymentType === "NFC" ? theme.colors.primary[700] : theme.colors.neutral[500]}
+              />
               <Text
                 style={[
                   styles.paymentText,
                   paymentType === "NFC" && styles.paymentSelectedText,
                 ]}
               >
-                💳 Tarjeta / NFC
+                Tarjeta / NFC
               </Text>
             </TouchableOpacity>
           </View>
@@ -244,12 +260,24 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     maxHeight: "85%",
   },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: theme.spacing.md,
+  },
   modalTitle: {
     fontSize: theme.typography.fontSize.xl,
     fontWeight: theme.typography.fontWeight.bold,
-    color: theme.colors.neutral[900],
-    marginBottom: theme.spacing.md,
-    textAlign: "center",
+    color: theme.colors.neutral[800],
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.neutral[200],
+    alignItems: "center",
+    justifyContent: "center",
   },
   itemList: {
     maxHeight: 180,
@@ -299,11 +327,15 @@ const styles = StyleSheet.create({
   paymentOption: {
     flex: 1,
     paddingVertical: theme.spacing.sm + 2,
+    paddingHorizontal: theme.spacing.sm,
     borderRadius: theme.borderRadius.md,
     borderWidth: 1,
     borderColor: theme.colors.neutral[300],
     alignItems: "center",
-    backgroundColor: theme.colors.neutral[50],
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: theme.spacing.xs,
+    backgroundColor: theme.colors.neutral[100],
   },
   paymentSelected: {
     borderColor: theme.colors.primary[600],

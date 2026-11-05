@@ -17,6 +17,8 @@ import { ProductCard } from "./src/components/catalog/ProductCard";
 import { ProductFormModal } from "./src/components/catalog/ProductFormModal";
 import { CartBar } from "./src/components/pos/CartBar";
 import { CheckoutModal } from "./src/components/pos/CheckoutModal";
+import { SalesHistoryModal } from "./src/components/pos/SalesHistoryModal";
+import { RefundModal } from "./src/components/pos/RefundModal";
 import { theme } from "./src/theme";
 
 const DEMO_STORE_ID = "store_local_001";
@@ -26,6 +28,8 @@ export default function App() {
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [checkoutModalVisible, setCheckoutModalVisible] = useState(false);
+  const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  const [refundTransactionId, setRefundTransactionId] = useState<string | null>(null);
 
   const {
     products,
@@ -106,6 +110,7 @@ export default function App() {
           title="ProxiCommerce OS"
           subtitle="Catálogo Local (Offline-First)"
           onAddPress={handleOpenAddModal}
+          onHistoryPress={() => setHistoryModalVisible(true)}
         />
 
         <FlatList
@@ -162,6 +167,25 @@ export default function App() {
           storeId={DEMO_STORE_ID}
           onRemoveItem={removeFromCart}
           onSuccess={handleSuccessfulCheckout}
+        />
+
+        <SalesHistoryModal
+          visible={historyModalVisible}
+          onClose={() => setHistoryModalVisible(false)}
+          onRefundPress={(txId) => {
+            setHistoryModalVisible(false);
+            setRefundTransactionId(txId);
+          }}
+        />
+
+        <RefundModal
+          visible={refundTransactionId !== null}
+          transactionId={refundTransactionId}
+          onClose={() => setRefundTransactionId(null)}
+          onRefundSuccess={async () => {
+            setRefundTransactionId(null);
+            await refreshProducts();
+          }}
         />
       </SafeAreaView>
     </SafeAreaProvider>

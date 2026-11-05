@@ -53,14 +53,17 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- Transactions table: records offline/online sales, payment types, total sums, and item snapshots
+    -- Transactions table: records offline/online sales, payment types, total sums, and item snapshots.
+    -- refund_for_id links a refund record back to the original transaction (NULL for normal sales).
+    -- Refund records carry a negative total and trigger stock restoration in the same atomic write.
     CREATE TABLE IF NOT EXISTS transactions (
       id TEXT PRIMARY KEY NOT NULL,
       store_id TEXT NOT NULL,
       type TEXT CHECK(type IN ('NFC', 'AI_SCAN', 'ONLINE_WEB', 'CASH')) NOT NULL,
       total REAL NOT NULL,
       timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
-      items TEXT NOT NULL
+      items TEXT NOT NULL,
+      refund_for_id TEXT REFERENCES transactions(id)
     );
   `);
 

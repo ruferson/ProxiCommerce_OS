@@ -4,7 +4,8 @@
  */
 
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Button } from "../ui/Button";
 import { theme } from "../../theme";
 
@@ -18,6 +19,8 @@ export interface HeaderProps {
   subtitle: string;
   /** Primary action callback handler for adding new entities */
   onAddPress: () => void;
+  /** Optional callback to open the sales history & arqueo panel */
+  onHistoryPress?: () => void;
 }
 
 /**
@@ -30,6 +33,7 @@ export const Header: React.FC<HeaderProps> = ({
   title,
   subtitle,
   onAddPress,
+  onHistoryPress,
 }) => {
   return (
     <View style={styles.header}>
@@ -38,6 +42,23 @@ export const Header: React.FC<HeaderProps> = ({
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
+
+      {/* History icon button (shown when handler is provided) */}
+      {onHistoryPress && (
+        <TouchableOpacity
+          onPress={onHistoryPress}
+          style={styles.historyButton}
+          activeOpacity={0.7}
+          accessibilityLabel="Ver historial de ventas"
+          accessibilityRole="button"
+        >
+          <MaterialCommunityIcons
+            name="receipt-text-outline"
+            size={20}
+            color={theme.colors.primary[600]}
+          />
+        </TouchableOpacity>
+      )}
 
       {/* Primary header action trigger */}
       <Button title="+ Nuevo" onPress={onAddPress} style={styles.addButton} />
@@ -70,6 +91,15 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.xs,
     color: theme.colors.neutral[500],
     marginTop: 2,
+  },
+  historyButton: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.primary[100],
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: theme.spacing.sm,
   },
   addButton: {
     borderRadius: theme.borderRadius.xl,

@@ -51,6 +51,8 @@ export interface TransactionItem {
 /**
  * Transaction record structure.
  * Note: When stored in SQLite, `items` is serialized as a JSON string of `TransactionItem[]`.
+ * When `refund_for_id` is set, this record represents a full or partial refund of the
+ * referenced transaction. The `total` will be a negative value and stock is restored.
  */
 export interface Transaction {
   id: string;
@@ -59,4 +61,6 @@ export interface Transaction {
   total: number;
   timestamp?: string;
   items: TransactionItem[] | string;
+  /** ID of the original transaction this record refunds. Null/undefined for normal sales. */
+  refund_for_id?: string | null;
 }
