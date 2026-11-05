@@ -24,6 +24,7 @@ import { ArqueoScreenModal } from "./src/components/pos/ArqueoScreenModal";
 import { BarcodeScannerModal } from "./src/components/pos/BarcodeScannerModal";
 import { getProductByBarcode } from "./src/services/catalogService";
 import { theme } from "./src/theme";
+import { useSyncEngine } from "./src/hooks/useSyncEngine";
 
 const DEMO_STORE_ID = "store_local_001";
 
@@ -31,11 +32,15 @@ export default function App() {
   const [isDbReady, setIsDbReady] = useState(false);
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [prefilledBarcode, setPrefilledBarcode] = useState<string | undefined>(undefined);
   const [checkoutModalVisible, setCheckoutModalVisible] = useState(false);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [arqueoModalVisible, setArqueoModalVisible] = useState(false);
   const [barcodeScannerVisible, setBarcodeScannerVisible] = useState(false);
-  const [refundTransactionId, setRefundTransactionId] = useState<string | null>(null);
+  const [refundTransactionId, setRefundTransactionId] = useState<string | null>(
+    null,
+  );
+  const { isOnline, pendingCount, isSyncing, forceSync } = useSyncEngine();
 
   const {
     products,
@@ -65,10 +70,12 @@ export default function App() {
 
   const handleOpenAddModal = () => {
     setEditingProduct(null);
+    setPrefilledBarcode(undefined);
     setProductModalVisible(true);
   };
 
   const handleOpenEditModal = (product: Product) => {
+    setPrefilledBarcode(undefined);
     setEditingProduct(product);
     setProductModalVisible(true);
   };
@@ -130,15 +137,8 @@ export default function App() {
               style: "default",
               onPress: () => {
                 setBarcodeScannerVisible(false);
-                setEditingProduct({
-                  id: `prod_${Date.now()}`,
-                  store_id: DEMO_STORE_ID,
-                  title: "",
-                  price: 0,
-                  stock_count: 1,
-                  image_uri: "",
-                  barcode: scannedData,
-                });
+                setEditingProduct(null);
+                setPrefilledBarcode(scannedData);
                 setProductModalVisible(true);
               },
             },
@@ -171,6 +171,10 @@ export default function App() {
           onScanPress={() => setBarcodeScannerVisible(true)}
           onHistoryPress={() => setHistoryModalVisible(true)}
           onArqueoPress={() => setArqueoModalVisible(true)}
+          isOnline={isOnline}
+          pendingSyncCount={pendingCount}
+          isSyncing={isSyncing}
+          onSyncPress={forceSync}
         />
 
         <FlatList
@@ -217,6 +221,7 @@ export default function App() {
           onDelete={handleDeleteProduct}
           storeId={DEMO_STORE_ID}
           initialProduct={editingProduct}
+          initialBarcode={prefilledBarcode}
         />
 
         <CheckoutModal

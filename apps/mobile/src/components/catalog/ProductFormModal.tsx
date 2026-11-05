@@ -40,6 +40,8 @@ export interface ProductFormModalProps {
   storeId: string;
   /** Optional initial product data when operating in edit mode */
   initialProduct?: Product | null;
+  /** Optional initial barcode value when opening form from scanner */
+  initialBarcode?: string;
 }
 
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({
@@ -49,6 +51,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   onDelete,
   storeId,
   initialProduct,
+  initialBarcode,
 }) => {
   // Form input field state
   const [title, setTitle] = useState("");
@@ -63,7 +66,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   // Check whether form is editing an existing item or creating a new one
   const isEditing = Boolean(initialProduct);
 
-  // Synchronize form fields whenever initialProduct or modal visibility changes
+  // Synchronize form fields whenever initialProduct, initialBarcode, or modal visibility changes
   useEffect(() => {
     if (initialProduct) {
       setTitle(initialProduct.title);
@@ -76,10 +79,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setTitle("");
       setPrice("");
       setStock("");
-      setBarcode("");
+      setBarcode(initialBarcode || "");
       setImageUri(null);
     }
-  }, [initialProduct, visible]);
+  }, [initialProduct, initialBarcode, visible]);
 
   const takePhoto = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();

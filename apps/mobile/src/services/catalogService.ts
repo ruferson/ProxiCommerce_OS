@@ -7,6 +7,7 @@
 import * as SQLite from "expo-sqlite";
 import { Product } from "@proxi-commerce/types";
 import { DB_NAME } from "../db/schema";
+import { enqueueSyncOperation } from "../db/syncQueue";
 
 /**
  * Fetches all products stored in the local SQLite database ordered by creation date descending.
@@ -45,6 +46,9 @@ export async function createProduct(
       product.barcode ?? null,
     ],
   );
+
+  // Queue mutation for cloud sync
+  await enqueueSyncOperation("product", product.id, "INSERT", product);
 }
 
 /**
@@ -64,6 +68,15 @@ export async function updateProductStock(
     `UPDATE products SET stock_count = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;`,
     [newStock, productId],
   );
+
+  // Fetch updated product or enqueue delta for cloud sync
+  const updatedProduct = await db.getFirstAsync<Product>(
+    `SELECT * FROM products WHERE id = ?;`,
+    [productId],
+  );
+  if (updatedProduct) {
+    await enqueueSyncOperation("product", productId, "UPDATE", updatedProduct);
+  }
 }
 
 /**
@@ -88,6 +101,9 @@ export async function updateProductDetails(
       product.id,
     ],
   );
+
+  // Queue mutation for cloud sync
+  await enqueueSyncOperation("product", product.id, "UPDATE", product);
 }
 
 /**
@@ -117,6 +133,9 @@ export async function deleteProduct(productId: string): Promise<void> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
   // Execute deletion of the target product
   await db.runAsync(`DELETE FROM products WHERE id = ?;`, [productId]);
+
+  // Queue deletion for cloud sync
+  await enqueueSyncOperation("product", productId, "DELETE", { id: productId });
 }
 
 

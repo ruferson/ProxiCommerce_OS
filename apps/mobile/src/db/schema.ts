@@ -21,9 +21,6 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
   // Open or create the local SQLite database file
   const db = await SQLite.openDatabaseAsync(DB_NAME);
 
-  // Drop transactions table to ensure fresh schema during development iterations
-  await db.execAsync(`DROP TABLE IF EXISTS transactions;`);
-
   // Configure pragmas and declare core entity tables
   await db.execAsync(`
     -- Enable Write-Ahead Logging (WAL) for better concurrent read/write throughput
@@ -66,6 +63,43 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       items TEXT NOT NULL,
       refund_for_id TEXT REFERENCES transactions(id)
     );
+
+    -- Closures table: registers daily Z/X cash register balancing, counts, and discrepancies
+    CREATE TABLE IF NOT EXISTS closures (
+      id TEXT PRIMARY KEY NOT NULL,
+      store_id TEXT NOT NULL,
+      date TEXT NOT NULL,
+      expected_cash REAL NOT NULL,
+      counted_cash REAL NOT NULL,
+      total_digital REAL NOT NULL,
+      grand_total REAL NOT NULL,
+      transaction_count INTEGER NOT NULL,
+      notes TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Sync Queue table: stores pending mutations to be pushed to Supabase when online
+    CREATE TABLE IF NOT EXISTS sync_queue (
+      id TEXT PRIMARY KEY NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      operation TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      status TEXT DEFAULT 'PENDING',
+      attempts INTEGER DEFAULT 0,
+      error_message TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Key-Value storage table: offline persistence fallback for auth sessions and local settings
+    CREATE TABLE IF NOT EXISTS app_kv_store (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL
+    );
+
+    -- Indexes for high-throughput offline queries
+    CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
+    CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue(status, created_at);
   `);
 
   // Migrate existing products table if barcode column does not exist yet
@@ -78,3 +112,20 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
   return db;
 }
 
+/**
+ * @description Table to track local mutations that need to be synced to the cloud.
+ * Implements the core of the offline-first architecture.
+ */
+export const SYNC_QUEUE_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS sync_queue (
+    id TEXT PRIMARY KEY,
+    entity_type TEXT NOT NULL,
+    entity_id TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    status TEXT DEFAULT 'PENDING',
+    attempts INTEGER DEFAULT 0,
+    error_message TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );
+`;

@@ -8,6 +8,7 @@
 import * as SQLite from "expo-sqlite";
 import { Transaction, TransactionItem, TransactionType } from "@proxi-commerce/types";
 import { DB_NAME } from "../db/schema";
+import { enqueueSyncOperation } from "../db/syncQueue";
 
 /**
  * Result of a successful refund operation.
@@ -167,6 +168,17 @@ export async function processFullRefund(
         );
       }
     }
+  });
+
+  // 3. Queue refund transaction for cloud synchronization
+  await enqueueSyncOperation("transaction", refundId, "INSERT", {
+    id: refundId,
+    store_id: original.store_id,
+    type: original.type,
+    total: refundTotal,
+    timestamp: new Date().toISOString(),
+    items: refundItems,
+    refund_for_id: originalTransactionId,
   });
 
   return {

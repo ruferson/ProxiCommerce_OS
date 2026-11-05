@@ -28,6 +28,9 @@ import { Card } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { theme } from "../../theme";
 import { useTransactionHistory } from "../../hooks/useTransactionHistory";
+import * as SQLite from "expo-sqlite";
+import { DB_NAME } from "../../db/schema";
+import { enqueueSyncOperation } from "../../db/syncQueue";
 
 type MCIconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 
@@ -106,12 +109,59 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
         {
           text: "Confirmar Cierre",
           style: "default",
-          onPress: () => {
-            Alert.alert(
-              "Cierre Guardado",
-              "El informe del turno ha sido validado correctamente.",
-              [{ text: "Aceptar", onPress: onClose }],
-            );
+          onPress: async () => {
+            try {
+              if (arqueo) {
+                const closureId = `cls_${Date.now()}`;
+                const closureRecord = {
+                  id: closureId,
+                  store_id: "store_local_001",
+                  date: arqueo.date,
+                  expected_cash: expectedCash,
+                  counted_cash: countedNum,
+                  total_digital: arqueo.totalDigital,
+                  grand_total: arqueo.grandTotal,
+                  transaction_count: arqueo.transactionCount,
+                  notes: notes.trim() || null,
+                  created_at: new Date().toISOString(),
+                };
+
+                // Persist closure to local SQLite database
+                const db = await SQLite.openDatabaseAsync(DB_NAME);
+                await db.runAsync(
+                  `INSERT INTO closures (id, store_id, date, expected_cash, counted_cash, total_digital, grand_total, transaction_count, notes)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+                  [
+                    closureRecord.id,
+                    closureRecord.store_id,
+                    closureRecord.date,
+                    closureRecord.expected_cash,
+                    closureRecord.counted_cash,
+                    closureRecord.total_digital,
+                    closureRecord.grand_total,
+                    closureRecord.transaction_count,
+                    closureRecord.notes,
+                  ],
+                );
+
+                // Queue closure for cloud sync
+                await enqueueSyncOperation(
+                  "closure",
+                  closureId,
+                  "INSERT",
+                  closureRecord,
+                );
+              }
+
+              Alert.alert(
+                "Cierre Guardado",
+                "El informe del turno ha sido validado y encolado para sincronización en la nube.",
+                [{ text: "Aceptar", onPress: onClose }],
+              );
+            } catch (err) {
+              console.error("Error al registrar cierre Z en SQLite:", err);
+              Alert.alert("Error", "No se pudo guardar el cierre en la base de datos local.");
+            }
           },
         },
       ],

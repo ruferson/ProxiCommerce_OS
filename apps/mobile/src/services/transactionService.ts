@@ -7,6 +7,7 @@
 import * as SQLite from "expo-sqlite";
 import { CartItem, TransactionType } from "@proxi-commerce/types";
 import { DB_NAME } from "../db/schema";
+import { enqueueSyncOperation } from "../db/syncQueue";
 
 /**
  * Parameters required to record a completed sale transaction.
@@ -60,6 +61,17 @@ export async function createTransaction(
         [item.quantity, item.product.id],
       );
     }
+  });
+
+  // 3. Enqueue mutation for cloud synchronization
+  await enqueueSyncOperation("transaction", transactionId, "INSERT", {
+    id: transactionId,
+    store_id: input.storeId,
+    type: input.type,
+    total: input.total,
+    timestamp: new Date().toISOString(),
+    items: transactionItems,
+    refund_for_id: null,
   });
 }
 

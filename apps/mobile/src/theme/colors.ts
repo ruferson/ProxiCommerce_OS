@@ -17,6 +17,8 @@ export const colors = {
     50: "#eeeeff",   // near-white lavender tint – active card surfaces
     100: "#ddddf5",  // light periwinkle – pill/badge backgrounds
     200: "#c0bfe8",  // muted lavender – hover / selected borders
+    300: "#a8a6df",  // soft periwinkle – subtle accent borders
+    400: "#8e8cd3",  // medium periwinkle
     500: "#7b79c8",  // soft indigo – icons, highlights
     600: "#6260b0",  // medium violet – primary buttons, prices
     700: "#4d4c95",  // deep violet – text on light surfaces
