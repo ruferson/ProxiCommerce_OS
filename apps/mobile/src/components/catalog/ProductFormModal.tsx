@@ -103,19 +103,41 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     if (!result.canceled && result.assets[0]?.uri) {
       const sourceUri = result.assets[0].uri;
       const fileName = `product_${Date.now()}.jpg`;
-      const destinationUri = `${FileSystem.documentDirectory}${fileName}`;
+      const baseDir = FileSystem.documentDirectory || "";
+      const destinationUri = `${baseDir}${fileName}`;
 
-      await FileSystem.copyAsync({ from: sourceUri, to: destinationUri });
-      setImageUri(destinationUri);
+      try {
+        await FileSystem.copyAsync({ from: sourceUri, to: destinationUri });
+        setImageUri(destinationUri);
+      } catch {
+        // Fallback to local source URI if copy fails
+        setImageUri(sourceUri);
+      }
     }
   };
 
   const handleSave = async () => {
-    // Validate required fields
+    // Validate text inputs
     if (!title.trim() || !price || !stock || !imageUri) {
       Alert.alert(
         "Campos incompletos",
         "Por favor, añade una foto, título, precio y stock.",
+      );
+      return;
+    }
+
+    const parsedPrice = parseFloat(price.replace(",", "."));
+    const parsedStock = parseInt(stock, 10);
+
+    if (isNaN(parsedPrice) || parsedPrice < 0) {
+      Alert.alert("Precio inválido", "Por favor, introduce un precio válido.");
+      return;
+    }
+
+    if (isNaN(parsedStock) || parsedStock < 0) {
+      Alert.alert(
+        "Stock inválido",
+        "Por favor, introduce una cantidad de stock válida.",
       );
       return;
     }
@@ -126,8 +148,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         id: initialProduct ? initialProduct.id : `prod_${Date.now()}`,
         store_id: storeId,
         title: title.trim(),
-        price: parseFloat(price.replace(",", ".")),
-        stock_count: parseInt(stock, 10),
+        price: parsedPrice,
+        stock_count: parsedStock,
         image_uri: imageUri,
         barcode: barcode.trim() || undefined,
       };
@@ -158,7 +180,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               await onDelete(initialProduct.id);
               onClose();
             } catch (error) {
-              Alert.alert("Error", "No se pudo eliminar el producto localmente.");
+              Alert.alert(
+                "Error",
+                "No se pudo eliminar el producto localmente.",
+              );
             } finally {
               setIsDeleting(false);
             }
@@ -178,7 +203,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       <Modal visible={visible} animationType="slide" transparent>
         <View style={styles.overlay}>
           <View style={styles.modalContent}>
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+            >
               {/* Modal Heading */}
               <Text style={styles.modalTitle}>
                 {isEditing ? "Editar Producto" : "Nuevo Producto"}
@@ -191,7 +219,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 onPress={takePhoto}
               >
                 {imageUri ? (
-                  <Image source={{ uri: imageUri }} style={styles.imagePreview} />
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={styles.imagePreview}
+                  />
                 ) : (
                   <View style={styles.imagePickerPlaceholder}>
                     <MaterialCommunityIcons

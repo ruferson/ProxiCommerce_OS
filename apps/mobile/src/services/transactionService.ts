@@ -60,6 +60,20 @@ export async function createTransaction(
         `UPDATE products SET stock_count = stock_count - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;`,
         [item.quantity, item.product.id],
       );
+
+      // Fetch updated product record to enqueue stock change for cloud synchronization
+      const updatedProd = await db.getFirstAsync<any>(
+        `SELECT * FROM products WHERE id = ?;`,
+        [item.product.id],
+      );
+      if (updatedProd) {
+        await enqueueSyncOperation(
+          "product",
+          item.product.id,
+          "UPDATE",
+          updatedProd,
+        );
+      }
     }
   });
 
@@ -74,4 +88,3 @@ export async function createTransaction(
     refund_for_id: null,
   });
 }
-

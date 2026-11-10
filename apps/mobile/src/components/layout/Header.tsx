@@ -1,129 +1,88 @@
 /**
  * @file Header.tsx
- * @description Top navigation and app bar header presenting brand identity, offline sync status,
- * screen context, and primary POS action buttons in a responsive two-tier layout.
+ * @description Unified top app bar for ProxiCommerce TPV. Presents brand identity,
+ * automated real-time background sync status (via SyncBadge), and responsive
+ * POS action buttons (barcode scanner, cash register closure, history, and entity creation).
  */
 
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { Button } from "../ui/Button";
+import { SyncBadge } from "../ui/SyncBadge";
 import { theme } from "../../theme";
 
 export interface HeaderProps {
-  /** Main header title text */
+  /** Main header title text (e.g., store name or screen title) */
   title: string;
-  /** Subtitle context string */
+  /** Subtitle context string (e.g., terminal ID or active section) */
   subtitle: string;
-  /** Primary action callback handler for adding new entities */
-  onAddPress: () => void;
-  /** Optional callback to open the barcode scanner for rapid cart scanning */
+  /** Primary action callback handler for adding new items or manual entries */
+  onAddPress?: () => void;
+  /** Title label for the primary action button */
+  addLabel?: string;
+  /** Optional callback to open the camera barcode scanner */
   onScanPress?: () => void;
-  /** Optional callback to open the sales history panel */
+  /** Optional callback to open the transaction history screen */
   onHistoryPress?: () => void;
-  /** Optional callback to open the dedicated full-screen Arqueo Z screen */
+  /** Optional callback to open the dedicated Arqueo Z / Cash Closure modal */
   onArqueoPress?: () => void;
-  /** Device internet connectivity state */
-  isOnline?: boolean;
-  /** Number of pending mutations awaiting synchronization */
-  pendingSyncCount?: number;
-  /** Active sync operation state */
-  isSyncing?: boolean;
-  /** Optional trigger to force manual synchronization */
-  onSyncPress?: () => void;
+  /** Device online status */
+  isOnline: boolean;
+  /** Count of pending offline operations in SQLite queue */
+  pendingSyncCount: number;
+  /** Active sync indicator state */
+  isSyncing: boolean;
+  /** Manual trigger for queue upload */
+  onSyncPress: () => void | Promise<void>;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   title,
   subtitle,
   onAddPress,
+  addLabel = "+ Nuevo",
   onScanPress,
   onHistoryPress,
   onArqueoPress,
-  isOnline = true,
-  pendingSyncCount = 0,
-  isSyncing = false,
+  isOnline,
+  pendingSyncCount,
+  isSyncing,
   onSyncPress,
 }) => {
   return (
     <View style={styles.header}>
-      {/* Tier 1: Brand Title & Sync State Pill */}
+      {/* Tier 1: Brand / Screen Title & Live Sync Status Badge */}
       <View style={styles.topRow}>
-        <Text style={styles.title} numberOfLines={1}>
-          {title}
-        </Text>
-
-        <TouchableOpacity
-          style={[
-            styles.syncPill,
-            !isOnline
-              ? styles.syncPillOffline
-              : isSyncing
-                ? styles.syncPillSyncing
-                : pendingSyncCount > 0
-                  ? styles.syncPillPending
-                  : styles.syncPillOnline,
-          ]}
-          onPress={onSyncPress}
-          activeOpacity={0.7}
-          disabled={!onSyncPress}
-        >
-          <MaterialCommunityIcons
-            name={
-              !isOnline
-                ? "cloud-off-outline"
-                : isSyncing
-                  ? "cloud-sync-outline"
-                  : pendingSyncCount > 0
-                    ? "cloud-upload-outline"
-                    : "cloud-check-outline"
-            }
-            size={13}
-            color={
-              !isOnline
-                ? theme.colors.neutral[600]
-                : isSyncing || pendingSyncCount > 0
-                  ? theme.colors.primary[700]
-                  : theme.colors.payment.cash
-            }
-          />
-          <Text
-            style={[
-              styles.syncPillText,
-              {
-                color: !isOnline
-                  ? theme.colors.neutral[600]
-                  : isSyncing || pendingSyncCount > 0
-                    ? theme.colors.primary[700]
-                    : theme.colors.payment.cash,
-              },
-            ]}
-          >
-            {!isOnline
-              ? `Offline${pendingSyncCount > 0 ? ` (${pendingSyncCount})` : ""}`
-              : isSyncing
-                ? "Subiendo..."
-                : pendingSyncCount > 0
-                  ? `${pendingSyncCount} pendientes`
-                  : "Online"}
+        <View style={styles.titleBlock}>
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
           </Text>
-        </TouchableOpacity>
+        </View>
+
+        {/* Real-time background sync monitor */}
+        <SyncBadge
+          isOnline={isOnline}
+          pendingCount={pendingSyncCount}
+          isSyncing={isSyncing}
+          onSyncPress={onSyncPress}
+        />
       </View>
 
-      {/* Tier 2: Screen Subtitle & Quick POS Actions Toolbar */}
+      {/* Tier 2: Context Subtitle & Quick POS Actions Toolbar */}
       <View style={styles.bottomRow}>
         <Text style={styles.subtitle} numberOfLines={1}>
           {subtitle}
         </Text>
 
         <View style={styles.actionsGroup}>
-          {/* Barcode scanner icon button for quick POS cart scanning */}
+          {/* Barcode scanner action */}
           {onScanPress && (
             <TouchableOpacity
               onPress={onScanPress}
               style={styles.iconHeaderBtn}
               activeOpacity={0.7}
-              accessibilityLabel="Escanear código de barras para añadir al carrito"
+              accessibilityLabel="Escanear código de barras"
               accessibilityRole="button"
             >
               <MaterialCommunityIcons
@@ -134,7 +93,7 @@ export const Header: React.FC<HeaderProps> = ({
             </TouchableOpacity>
           )}
 
-          {/* Arqueo Z icon button */}
+          {/* Arqueo Z / Cash closure action */}
           {onArqueoPress && (
             <TouchableOpacity
               onPress={onArqueoPress}
@@ -151,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
             </TouchableOpacity>
           )}
 
-          {/* History icon button */}
+          {/* Transaction history action */}
           {onHistoryPress && (
             <TouchableOpacity
               onPress={onHistoryPress}
@@ -168,19 +127,20 @@ export const Header: React.FC<HeaderProps> = ({
             </TouchableOpacity>
           )}
 
-          {/* Primary header action trigger */}
-          <Button
-            title="+ Nuevo"
-            onPress={onAddPress}
-            style={styles.addButton}
-          />
+          {/* Primary CTA button */}
+          {onAddPress && (
+            <Button
+              title={addLabel}
+              onPress={onAddPress}
+              style={styles.addButton}
+            />
+          )}
         </View>
       </View>
     </View>
   );
 };
 
-// --- Stylesheet ---
 const styles = StyleSheet.create({
   header: {
     paddingHorizontal: theme.spacing.md,
@@ -196,41 +156,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  titleBlock: {
+    flex: 1,
+    marginRight: theme.spacing.sm,
+  },
   title: {
     fontSize: theme.typography.fontSize.lg,
     fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.neutral[900],
-    flex: 1,
-    marginRight: theme.spacing.sm,
-  },
-  syncPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: theme.spacing.xs + 3,
-    paddingVertical: 3,
-    borderRadius: theme.borderRadius.full,
-    gap: 4,
-    borderWidth: 1,
-  },
-  syncPillOnline: {
-    backgroundColor: theme.colors.payment.cashLight,
-    borderColor: "#c1e3d3",
-  },
-  syncPillOffline: {
-    backgroundColor: theme.colors.neutral[200],
-    borderColor: theme.colors.neutral[300],
-  },
-  syncPillPending: {
-    backgroundColor: theme.colors.primary[50],
-    borderColor: theme.colors.primary[200],
-  },
-  syncPillSyncing: {
-    backgroundColor: theme.colors.primary[100],
-    borderColor: theme.colors.primary[200],
-  },
-  syncPillText: {
-    fontSize: 10,
-    fontWeight: theme.typography.fontWeight.semibold,
   },
   bottomRow: {
     flexDirection: "row",

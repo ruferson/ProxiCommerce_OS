@@ -1,5 +1,21 @@
 {
   "plugins": [
+    [
+      "expo-camera",
+      {
+        "cameraPermission": "Permite que ProxiCommerce use la cámara para escanear códigos y fotografiar productos.",
+        "microphonePermission": false,
+        "recordAudioAndroid": false
+      }
+    ],
+    [
+      "expo-image-picker",
+      {
+        "cameraPermission": "Permite que ProxiCommerce use la cámara para escanear códigos y fotografiar productos.",
+        "photosPermission": false,
+        "microphonePermission": false
+      }
+    ],
     "expo-sqlite",
     "expo-status-bar"
   ]

@@ -43,7 +43,7 @@ export interface UseCatalogReturn {
  *
  * @returns {UseCatalogReturn} Catalog state and mutation functions.
  */
-export function useCatalog(): UseCatalogReturn {
+export function useCatalog(enabled = true): UseCatalogReturn {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -64,8 +64,10 @@ export function useCatalog(): UseCatalogReturn {
 
   // Fetch initial product list when the hook mounts
   useEffect(() => {
-    refreshProducts();
-  }, [refreshProducts]);
+    if (enabled) {
+      void refreshProducts();
+    }
+  }, [enabled, refreshProducts]);
 
   /**
    * Creates a new product in the SQLite database and refreshes the catalog state.
@@ -116,4 +118,3 @@ export function useCatalog(): UseCatalogReturn {
     refreshProducts,
   };
 }
-

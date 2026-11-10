@@ -20,7 +20,7 @@ export interface ButtonProps extends TouchableOpacityProps {
   /** Text content displayed inside the button */
   title: string;
   /** Visual hierarchy variant: primary (brand indigo), secondary (subtle grey), outline (bordered), or danger (red) */
-  variant?: "primary" | "secondary" | "outline" | "danger";
+  variant?: "primary" | "secondary" | "outline" | "danger" | "ghost";
   /** Shows a loading spinner instead of the text label */
   loading?: boolean;
 }
@@ -43,6 +43,7 @@ export const Button: React.FC<ButtonProps> = ({
   const isSecondary = variant === "secondary";
   const isOutline = variant === "outline";
   const isDanger = variant === "danger";
+  const isGhost = variant === "ghost";
 
   return (
     <TouchableOpacity
@@ -53,6 +54,7 @@ export const Button: React.FC<ButtonProps> = ({
         isSecondary && styles.secondary,
         isOutline && styles.outline,
         isDanger && styles.danger,
+        isGhost && styles.ghost,
         disabled && styles.disabled,
         style,
       ]}
@@ -71,6 +73,7 @@ export const Button: React.FC<ButtonProps> = ({
             isSecondary && styles.secondaryText,
             isOutline && styles.outlineText,
             isDanger && styles.dangerText,
+            isGhost && styles.ghostText,
           ]}
         >
           {title}
@@ -102,6 +105,9 @@ const styles = StyleSheet.create({
   danger: {
     backgroundColor: theme.colors.status.error,
   },
+  ghost: {
+    backgroundColor: "transparent",
+  },
   disabled: {
     opacity: 0.5,
   },
@@ -119,5 +125,7 @@ const styles = StyleSheet.create({
   dangerText: {
     color: "#ffffff",
   },
+  ghostText: {
+    color: theme.colors.neutral[700],
+  },
 });
-

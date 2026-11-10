@@ -7,7 +7,11 @@
 
 import { useState, useCallback } from "react";
 import * as SQLite from "expo-sqlite";
-import { Transaction, TransactionItem, TransactionType } from "@proxi-commerce/types";
+import {
+  Transaction,
+  TransactionItem,
+  TransactionType,
+} from "@proxi-commerce/types";
 import { DB_NAME } from "../db/schema";
 
 /**
@@ -27,6 +31,10 @@ export interface DailyArqueo {
   date: string;
   /** Total net revenue across all payment methods (sales + refunds) */
   grandTotal: number;
+  /** Total positive gross sales generated today */
+  grossSales: number;
+  /** Total negative refunds processed today (absolute positive value) */
+  grossRefunds: number;
   /** Expected physical cash in drawer: CASH sales minus CASH refunds */
   expectedCash: number;
   /** Total collected via digital channels (NFC, AI_SCAN, ONLINE_WEB) */
@@ -65,13 +73,19 @@ function getLocalDayUTCBounds(): { startUtc: string; endUtc: string } {
     now.getFullYear(),
     now.getMonth(),
     now.getDate(),
-    0, 0, 0, 0,
+    0,
+    0,
+    0,
+    0,
   );
   const localEndOfDay = new Date(
     now.getFullYear(),
     now.getMonth(),
     now.getDate(),
-    23, 59, 59, 999,
+    23,
+    59,
+    59,
+    999,
   );
 
   // Convert to UTC ISO strings, then trim to `YYYY-MM-DD HH:MM:SS` for SQLite
@@ -137,9 +151,14 @@ export function useTransactionHistory(): UseTransactionHistoryResult {
         type: string;
         count: number;
         total: number;
-      }>(`SELECT type,
+        grossSales: number;
+        grossRefunds: number;
+      }>(
+        `SELECT type,
                 COUNT(*) AS count,
-                SUM(total) AS total
+                SUM(total) AS total,
+                SUM(CASE WHEN total > 0 THEN total ELSE 0 END) AS grossSales,
+                SUM(CASE WHEN total < 0 THEN ABS(total) ELSE 0 END) AS grossRefunds
           FROM transactions
           WHERE timestamp >= ? AND timestamp <= ?
           GROUP BY type;`,
@@ -154,6 +173,14 @@ export function useTransactionHistory(): UseTransactionHistoryResult {
 
       const grandTotal = breakdown.reduce((acc, b) => acc + b.total, 0);
       const transactionCount = breakdown.reduce((acc, b) => acc + b.count, 0);
+      const grossSales = todayRows.reduce(
+        (acc, r) => acc + (r.grossSales || 0),
+        0,
+      );
+      const grossRefunds = todayRows.reduce(
+        (acc, r) => acc + (r.grossRefunds || 0),
+        0,
+      );
 
       // Specific cash drawer & digital breakdown
       const cashEntry = breakdown.find((b) => b.type === "CASH");
@@ -168,13 +195,16 @@ export function useTransactionHistory(): UseTransactionHistoryResult {
       setArqueo({
         date: dateStr,
         grandTotal,
+        grossSales,
+        grossRefunds,
         expectedCash,
         totalDigital,
         transactionCount,
         breakdown,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "SQLite query failed";
+      const message =
+        err instanceof Error ? err.message : "SQLite query failed";
       console.error("[useTransactionHistory] Error:", err);
       setError(message);
     } finally {

@@ -71,7 +71,7 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
   visible,
   onClose,
 }) => {
-  const { arqueo, transactions, loading, refresh } = useTransactionHistory();
+  const { arqueo, loading, refresh } = useTransactionHistory();
   const [countedCash, setCountedCash] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
 
@@ -88,14 +88,9 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
   const hasCountedInput = countedCash.trim().length > 0;
   const discrepancy = countedNum - expectedCash;
 
-  // Calculation of gross sales vs refunds
-  const totalSales = transactions
-    .filter((t) => t.total > 0)
-    .reduce((acc, t) => acc + t.total, 0);
-
-  const totalRefunds = transactions
-    .filter((t) => t.total < 0)
-    .reduce((acc, t) => acc + Math.abs(t.total), 0);
+  // Utilize the pre-calculated daily totals from SQLite aggregation
+  const totalSales = arqueo?.grossSales ?? 0;
+  const totalRefunds = arqueo?.grossRefunds ?? 0;
 
   const handleFinishDay = () => {
     Alert.alert(
@@ -160,7 +155,10 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
               );
             } catch (err) {
               console.error("Error al registrar cierre Z en SQLite:", err);
-              Alert.alert("Error", "No se pudo guardar el cierre en la base de datos local.");
+              Alert.alert(
+                "Error",
+                "No se pudo guardar el cierre en la base de datos local.",
+              );
             }
           },
         },

@@ -23,7 +23,7 @@ export interface UseSyncEngineReturn {
   refreshPendingCount: () => Promise<void>;
 }
 
-export function useSyncEngine(): UseSyncEngineReturn {
+export function useSyncEngine(enabled = true): UseSyncEngineReturn {
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [syncingState, setSyncingState] = useState<boolean>(false);
@@ -50,8 +50,10 @@ export function useSyncEngine(): UseSyncEngineReturn {
   }, [refreshPendingCount]);
 
   useEffect(() => {
+    if (!enabled) return;
+
     // Initial fetch of pending mutations
-    refreshPendingCount();
+    void refreshPendingCount();
 
     // Subscribe to network reachability changes
     const unsubscribe = NetInfo.addEventListener((state) => {
@@ -73,7 +75,7 @@ export function useSyncEngine(): UseSyncEngineReturn {
       unsubscribe();
       clearInterval(interval);
     };
-  }, [runSync, refreshPendingCount]);
+  }, [enabled, runSync, refreshPendingCount]);
 
   const forceSync = async () => {
     if (isOnline) {

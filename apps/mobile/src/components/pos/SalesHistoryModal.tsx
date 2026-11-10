@@ -1,11 +1,11 @@
 /**
  * @file SalesHistoryModal.tsx
- * @description Modal de consulta de Historial de Ventas y Tickets.
- * Optimizado exclusivamente para la consulta ágil de transacciones durante la operativa:
- * - Filtros rápidos por método de pago (Todos, Efectivo, Tarjeta, etc.).
- * - Lista cronológica de tickets con desglose de artículos y fechas exactas.
- * - Gestión directa de devoluciones con restauración de stock.
- * - Banner compacto de acceso al Arqueo Z de fin de turno (sin duplicar la calculadora).
+ * @description Sales history and receipt lookup modal.
+ * Optimized for fast transaction lookup during operations:
+ * - Quick payment-method filters (all, cash, card, and more).
+ * - Chronological receipt list with item details and timestamps.
+ * - Direct refund management with stock restoration.
+ * - Compact access to the end-of-shift Arqueo Z without duplicating its calculator.
  * Uses @expo/vector-icons MaterialCommunityIcons throughout (no emojis).
  */
 
@@ -218,7 +218,7 @@ export const SalesHistoryModal: React.FC<SalesHistoryModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* Banner de acceso rápido al Arqueo Z de jornada */}
+          {/* Quick access banner for the daily Arqueo Z */}
           {onOpenArqueoScreen && arqueo && (
             <TouchableOpacity
               style={styles.arqueoBanner}

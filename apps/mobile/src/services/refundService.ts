@@ -6,7 +6,11 @@
  */
 
 import * as SQLite from "expo-sqlite";
-import { Transaction, TransactionItem, TransactionType } from "@proxi-commerce/types";
+import {
+  Transaction,
+  TransactionItem,
+  TransactionType,
+} from "@proxi-commerce/types";
 import { DB_NAME } from "../db/schema";
 import { enqueueSyncOperation } from "../db/syncQueue";
 
@@ -74,7 +78,9 @@ export async function getTransactionById(
  * @param {string} transactionId - Original transaction ID to check.
  * @returns {Promise<boolean>} True if a refund record for this transaction exists.
  */
-export async function isAlreadyRefunded(transactionId: string): Promise<boolean> {
+export async function isAlreadyRefunded(
+  transactionId: string,
+): Promise<boolean> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
   const row = await db.getFirstAsync<{ count: number }>(
     `SELECT COUNT(*) AS count FROM transactions WHERE refund_for_id = ?;`,
@@ -98,7 +104,7 @@ export async function isAlreadyRefunded(transactionId: string): Promise<boolean>
 export async function processFullRefund(
   originalTransactionId: string,
 ): Promise<RefundResult> {
-  // --- Pre-flight validation (outside the SQLite txn to give clear error messages) ---
+  // --- Pre-flight validation ---
   const original = await getTransactionById(originalTransactionId);
   if (!original) {
     throw new Error(`Transacción ${originalTransactionId} no encontrada.`);
@@ -129,7 +135,7 @@ export async function processFullRefund(
   // --- Atomic write ---
   const db = await SQLite.openDatabaseAsync(DB_NAME);
   const refundId = `rfnd_${Date.now()}`;
-  const refundTotal = -(original.total); // negative value stored in SQLite
+  const refundTotal = -original.total; // negative value stored in SQLite
 
   // Build the refund items snapshot: same products, quantities negated for clarity
   const refundItems: TransactionItem[] = items.map((item) => ({
@@ -154,7 +160,6 @@ export async function processFullRefund(
 
     // 2. Restore stock for each sold item
     for (const rawItem of items) {
-      // Accommodate both CartItem shape ({ product: { id } }) and TransactionItem shape ({ product_id })
       const anyItem = rawItem as any;
       const productId = anyItem.product_id || anyItem.product?.id;
       const quantity = Math.abs(anyItem.quantity || 1);
@@ -166,6 +171,20 @@ export async function processFullRefund(
            WHERE id = ?;`,
           [quantity, productId],
         );
+
+        // Fetch updated product record to enqueue restored stock for cloud sync
+        const updatedProd = await db.getFirstAsync<any>(
+          `SELECT * FROM products WHERE id = ?;`,
+          [productId],
+        );
+        if (updatedProd) {
+          await enqueueSyncOperation(
+            "product",
+            productId,
+            "UPDATE",
+            updatedProd,
+          );
+        }
       }
     }
   });
@@ -187,4 +206,3 @@ export async function processFullRefund(
     stockLinesRestored: items.length,
   };
 }
-

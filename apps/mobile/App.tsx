@@ -6,7 +6,9 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
+  TouchableOpacity,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Product } from "@proxi-commerce/types";
@@ -25,6 +27,8 @@ import { BarcodeScannerModal } from "./src/components/pos/BarcodeScannerModal";
 import { getProductByBarcode } from "./src/services/catalogService";
 import { theme } from "./src/theme";
 import { useSyncEngine } from "./src/hooks/useSyncEngine";
+import { useInitialSync } from "./src/hooks/useInitialSync";
+import { SyncDecisionModal } from "./src/components/sync/SyncDecisionModal";
 
 const DEMO_STORE_ID = "store_local_001";
 
@@ -32,7 +36,9 @@ export default function App() {
   const [isDbReady, setIsDbReady] = useState(false);
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [prefilledBarcode, setPrefilledBarcode] = useState<string | undefined>(undefined);
+  const [prefilledBarcode, setPrefilledBarcode] = useState<string | undefined>(
+    undefined,
+  );
   const [checkoutModalVisible, setCheckoutModalVisible] = useState(false);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [arqueoModalVisible, setArqueoModalVisible] = useState(false);
@@ -40,7 +46,8 @@ export default function App() {
   const [refundTransactionId, setRefundTransactionId] = useState<string | null>(
     null,
   );
-  const { isOnline, pendingCount, isSyncing, forceSync } = useSyncEngine();
+  const { isOnline, pendingCount, isSyncing, forceSync } =
+    useSyncEngine(isDbReady);
 
   const {
     products,
@@ -49,7 +56,8 @@ export default function App() {
     editProduct,
     deleteProduct,
     refreshProducts,
-  } = useCatalog();
+  } = useCatalog(isDbReady);
+  const initialSync = useInitialSync(DEMO_STORE_ID, refreshProducts);
   const {
     cart,
     total,
@@ -67,6 +75,18 @@ export default function App() {
         console.error("Error initializing local SQLite DB:", err),
       );
   }, []);
+
+  useEffect(() => {
+    if (isDbReady) {
+      void initialSync.checkSyncStatus().catch((error) => {
+        console.error("[App] Failed to check initial sync status:", error);
+        Alert.alert(
+          "Error de sincronización",
+          "No se pudo comprobar el estado de sincronización.",
+        );
+      });
+    }
+  }, [initialSync.checkSyncStatus, isDbReady]);
 
   const handleOpenAddModal = () => {
     setEditingProduct(null);
@@ -214,6 +234,29 @@ export default function App() {
           onCheckoutPress={() => setCheckoutModalVisible(true)}
         />
 
+        <TouchableOpacity
+          style={[
+            styles.syncButton,
+            totalItems > 0 && styles.syncButtonAboveCart,
+          ]}
+          onPress={initialSync.handlePullToRefresh}
+          disabled={initialSync.isRefreshing}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Sincronizar catálogo"
+        >
+          {initialSync.isRefreshing ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <MaterialCommunityIcons
+              name="cloud-sync-outline"
+              size={20}
+              color="#ffffff"
+            />
+          )}
+          <Text style={styles.syncButtonText}>Sincronizar</Text>
+        </TouchableOpacity>
+
         <ProductFormModal
           visible={productModalVisible}
           onClose={() => setProductModalVisible(false)}
@@ -268,6 +311,15 @@ export default function App() {
           onBarcodeScanned={handleBarcodeScannedPOS}
           onClose={() => setBarcodeScannerVisible(false)}
         />
+
+        <SyncDecisionModal
+          visible={initialSync.modalVisible}
+          localCount={initialSync.localCount}
+          isLoading={initialSync.isProcessing}
+          onOverwriteLocal={initialSync.handleOverwriteLocal}
+          onOverwriteRemote={initialSync.handleOverwriteRemote}
+          onCancel={initialSync.closeModal}
+        />
       </SafeAreaView>
     </SafeAreaProvider>
   );
@@ -291,9 +343,37 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: theme.spacing.md,
+    paddingBottom: theme.spacing.xxl * 3,
   },
   listContentWithCartBar: {
-    paddingBottom: theme.spacing.xxl * 2,
+    paddingBottom: theme.spacing.xxl * 4,
+  },
+  syncButton: {
+    position: "absolute",
+    right: theme.spacing.md,
+    bottom: theme.spacing.lg,
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.primary[600],
+    shadowColor: theme.colors.neutral[900],
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 2,
+  },
+  syncButtonAboveCart: {
+    bottom: theme.spacing.xxl * 3,
+  },
+  syncButtonText: {
+    color: "#ffffff",
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
   },
   emptyContainer: {
     padding: theme.spacing.xxl,
