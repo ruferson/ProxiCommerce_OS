@@ -65,13 +65,15 @@ const PAYMENT_COLOR_LIGHT: Record<TransactionType, string> = {
 export interface ArqueoScreenModalProps {
   visible: boolean;
   onClose: () => void;
+  storeId: string;
 }
 
 export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
   visible,
   onClose,
+  storeId,
 }) => {
-  const { arqueo, loading, refresh } = useTransactionHistory();
+  const { arqueo, loading, refresh } = useTransactionHistory(storeId);
   const [countedCash, setCountedCash] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
 
@@ -110,7 +112,7 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
                 const closureId = `cls_${Date.now()}`;
                 const closureRecord = {
                   id: closureId,
-                  store_id: "store_local_001",
+                  store_id: storeId,
                   date: arqueo.date,
                   expected_cash: expectedCash,
                   counted_cash: countedNum,

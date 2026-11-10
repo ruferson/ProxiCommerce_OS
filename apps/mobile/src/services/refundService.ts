@@ -35,6 +35,7 @@ export interface RefundResult {
  */
 export async function getTransactionById(
   transactionId: string,
+  storeId: string,
 ): Promise<Transaction | null> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
 
@@ -49,8 +50,8 @@ export async function getTransactionById(
   }>(
     `SELECT id, store_id, type, total, timestamp, items, refund_for_id
      FROM transactions
-     WHERE id = ?;`,
-    [transactionId],
+     WHERE id = ? AND store_id = ?;`,
+    [transactionId, storeId],
   );
 
   if (!row) return null;
@@ -80,11 +81,12 @@ export async function getTransactionById(
  */
 export async function isAlreadyRefunded(
   transactionId: string,
+  storeId: string,
 ): Promise<boolean> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
   const row = await db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) AS count FROM transactions WHERE refund_for_id = ?;`,
-    [transactionId],
+    `SELECT COUNT(*) AS count FROM transactions WHERE refund_for_id = ? AND store_id = ?;`,
+    [transactionId, storeId],
   );
   return (row?.count ?? 0) > 0;
 }
@@ -103,9 +105,10 @@ export async function isAlreadyRefunded(
  */
 export async function processFullRefund(
   originalTransactionId: string,
+  storeId: string,
 ): Promise<RefundResult> {
   // --- Pre-flight validation ---
-  const original = await getTransactionById(originalTransactionId);
+  const original = await getTransactionById(originalTransactionId, storeId);
   if (!original) {
     throw new Error(`Transacción ${originalTransactionId} no encontrada.`);
   }
@@ -113,7 +116,10 @@ export async function processFullRefund(
     throw new Error("Esta transacción ya es un registro de devolución.");
   }
 
-  const alreadyRefunded = await isAlreadyRefunded(originalTransactionId);
+  const alreadyRefunded = await isAlreadyRefunded(
+    originalTransactionId,
+    storeId,
+  );
   if (alreadyRefunded) {
     throw new Error("Esta venta ya tiene una devolución registrada.");
   }
@@ -168,14 +174,14 @@ export async function processFullRefund(
         await db.runAsync(
           `UPDATE products
            SET stock_count = stock_count + ?, updated_at = CURRENT_TIMESTAMP
-           WHERE id = ?;`,
-          [quantity, productId],
+           WHERE id = ? AND store_id = ?;`,
+          [quantity, productId, storeId],
         );
 
         // Fetch updated product record to enqueue restored stock for cloud sync
         const updatedProd = await db.getFirstAsync<any>(
-          `SELECT * FROM products WHERE id = ?;`,
-          [productId],
+          `SELECT * FROM products WHERE id = ? AND store_id = ?;`,
+          [productId, storeId],
         );
         if (updatedProd) {
           await enqueueSyncOperation(

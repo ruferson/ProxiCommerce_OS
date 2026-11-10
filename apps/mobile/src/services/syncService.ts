@@ -6,6 +6,10 @@
  */
 
 import { supabase } from "../lib/supabase";
+import * as SQLite from "expo-sqlite";
+import NetInfo from "@react-native-community/netinfo";
+import { DB_NAME } from "../db/schema";
+import { uploadProductImage } from "./storageService";
 import {
   getPendingSyncItems,
   updateSyncItemStatus,
@@ -42,13 +46,41 @@ async function processQueueItem(item: SyncQueueItem): Promise<boolean> {
 
     switch (item.entity_type) {
       case "product": {
+        if (typeof payload.store_id !== "string") {
+          throw new Error("Product sync payload is missing its store ID.");
+        }
+
         if (item.operation === "DELETE") {
           const { error: err } = await supabase
             .from("products")
             .delete()
-            .eq("id", item.entity_id);
+            .eq("id", item.entity_id)
+            .eq("store_id", payload.store_id);
           error = err;
         } else {
+          if (typeof payload.id !== "string") {
+            throw new Error("Product sync payload is missing its ID.");
+          }
+
+          if (
+            typeof payload.image_uri === "string" &&
+            payload.image_uri.startsWith("file://")
+          ) {
+            const publicUrl = await uploadProductImage(
+              payload.image_uri,
+              payload.id,
+            );
+            payload.image_uri = publicUrl;
+
+            const db = await SQLite.openDatabaseAsync(DB_NAME);
+            await db.runAsync(
+              `UPDATE products
+               SET image_uri = ?, updated_at = CURRENT_TIMESTAMP
+               WHERE id = ? AND store_id = ?;`,
+              [publicUrl, payload.id, payload.store_id],
+            );
+          }
+
           // Both INSERT, UPDATE, and UPSERT handled via idempotent upsert
           const { error: err } = await supabase
             .from("products")
@@ -152,23 +184,35 @@ export async function triggerUpstreamSync(): Promise<{
   let errorsCount = 0;
 
   try {
-    const items = await getPendingSyncItems(50);
-    if (items.length === 0) {
+    const networkState = await NetInfo.fetch();
+    if (
+      !networkState.isConnected ||
+      networkState.isInternetReachable === false
+    ) {
       return { syncedCount: 0, errorsCount: 0 };
     }
 
-    console.log(`[SyncService] Processing ${items.length} pending operations...`);
+    let hasFailedItem = false;
+    while (!hasFailedItem) {
+      const items = await getPendingSyncItems(50);
+      if (items.length === 0) break;
 
-    for (const item of items) {
-      const ok = await processQueueItem(item);
-      if (ok) {
-        syncedCount++;
-      } else {
-        errorsCount++;
+      console.log(`[SyncService] Processing ${items.length} pending operations...`);
+
+      for (const item of items) {
+        const ok = await processQueueItem(item);
+        if (ok) {
+          syncedCount++;
+        } else {
+          errorsCount++;
+          hasFailedItem = true;
+          break;
+        }
       }
     }
   } catch (error) {
     console.error("[SyncService] Fatal sync cycle error:", error);
+    errorsCount++;
   } finally {
     isSyncing = false;
   }

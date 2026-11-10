@@ -102,7 +102,9 @@ function getLocalDayUTCBounds(): { startUtc: string; endUtc: string } {
  *
  * @returns {UseTransactionHistoryResult} Reactive state with transactions, arqueo, and refresh action.
  */
-export function useTransactionHistory(): UseTransactionHistoryResult {
+export function useTransactionHistory(
+  storeId: string,
+): UseTransactionHistoryResult {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [arqueo, setArqueo] = useState<DailyArqueo | null>(null);
   const [loading, setLoading] = useState(false);
@@ -126,7 +128,10 @@ export function useTransactionHistory(): UseTransactionHistoryResult {
         refund_for_id?: string | null;
       }>(`SELECT id, store_id, type, total, timestamp, items, refund_for_id
           FROM transactions
-          ORDER BY timestamp DESC;`);
+          WHERE store_id = ?
+          ORDER BY timestamp DESC;`,
+        [storeId],
+      );
 
       const parsed: Transaction[] = rawRows.map((row) => ({
         id: row.id,
@@ -160,9 +165,9 @@ export function useTransactionHistory(): UseTransactionHistoryResult {
                 SUM(CASE WHEN total > 0 THEN total ELSE 0 END) AS grossSales,
                 SUM(CASE WHEN total < 0 THEN ABS(total) ELSE 0 END) AS grossRefunds
           FROM transactions
-          WHERE timestamp >= ? AND timestamp <= ?
+          WHERE store_id = ? AND timestamp >= ? AND timestamp <= ?
           GROUP BY type;`,
-        [startUtc, endUtc],
+        [storeId, startUtc, endUtc],
       );
 
       const breakdown: PaymentBreakdown[] = todayRows.map((r) => ({
@@ -210,7 +215,7 @@ export function useTransactionHistory(): UseTransactionHistoryResult {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [storeId]);
 
   return { transactions, arqueo, loading, error, refresh };
 }

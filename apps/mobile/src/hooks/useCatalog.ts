@@ -4,7 +4,7 @@
  * Exposes product records, loading states, and operations to create or update catalog entities.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Product } from "@proxi-commerce/types";
 import {
   getProducts,
@@ -22,6 +22,8 @@ export interface UseCatalogReturn {
   products: Product[];
   /** Loading state indicator for catalog queries */
   loading: boolean;
+  /** Error from the last catalog read, if any */
+  error: string | null;
   /** Adds a new product entity and triggers catalog refresh */
   addProduct: (
     productData: Omit<Product, "created_at" | "updated_at">,
@@ -43,31 +45,55 @@ export interface UseCatalogReturn {
  *
  * @returns {UseCatalogReturn} Catalog state and mutation functions.
  */
-export function useCatalog(enabled = true): UseCatalogReturn {
+export function useCatalog(
+  storeId: string | null,
+  enabled = true,
+): UseCatalogReturn {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const requestId = useRef(0);
 
   /**
    * Refetches the full product catalog from the SQLite database.
    */
   const refreshProducts = useCallback(async (): Promise<void> => {
+    const currentRequestId = ++requestId.current;
     try {
       setLoading(true);
-      const data = await getProducts();
-      setProducts(data);
-    } catch (error) {
-      console.error("Failed to fetch local product catalog:", error);
+      setError(null);
+      if (!storeId) {
+        setProducts([]);
+        return;
+      }
+
+      const data = await getProducts(storeId);
+      if (currentRequestId === requestId.current) setProducts(data);
+    } catch (fetchError) {
+      if (currentRequestId === requestId.current) {
+        console.error("Failed to fetch local product catalog:", fetchError);
+        setError(
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Unable to load the catalog.",
+        );
+      }
     } finally {
-      setLoading(false);
+      if (currentRequestId === requestId.current) setLoading(false);
     }
-  }, []);
+  }, [storeId]);
 
   // Fetch initial product list when the hook mounts
   useEffect(() => {
-    if (enabled) {
+    if (enabled && storeId) {
       void refreshProducts();
+    } else {
+      requestId.current += 1;
+      setProducts([]);
+      setLoading(false);
+      setError(null);
     }
-  }, [enabled, refreshProducts]);
+  }, [enabled, refreshProducts, storeId]);
 
   /**
    * Creates a new product in the SQLite database and refreshes the catalog state.
@@ -96,7 +122,8 @@ export function useCatalog(enabled = true): UseCatalogReturn {
     productId: string,
     newStock: number,
   ): Promise<void> => {
-    await updateProductStock(productId, newStock);
+    if (!storeId) return;
+    await updateProductStock(productId, newStock, storeId);
     await refreshProducts();
   };
 
@@ -104,13 +131,15 @@ export function useCatalog(enabled = true): UseCatalogReturn {
    * Removes a product from the SQLite database and refreshes the catalog state.
    */
   const deleteProduct = async (productId: string): Promise<void> => {
-    await deleteProductService(productId);
+    if (!storeId) return;
+    await deleteProductService(productId, storeId);
     await refreshProducts();
   };
 
   return {
     products,
     loading,
+    error,
     addProduct,
     editProduct,
     setStock,

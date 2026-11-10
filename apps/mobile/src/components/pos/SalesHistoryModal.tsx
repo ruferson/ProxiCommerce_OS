@@ -72,6 +72,7 @@ const FILTER_OPTIONS: { id: FilterType; label: string; icon: MCIconName }[] = [
 export interface SalesHistoryModalProps {
   visible: boolean;
   onClose: () => void;
+  storeId: string;
   /** Receives the transaction ID when the user taps "Devolver" on a row */
   onRefundPress: (transactionId: string) => void;
   /** Triggers the dedicated full-screen Arqueo Z screen */
@@ -176,15 +177,17 @@ const TransactionRow: React.FC<{
 export const SalesHistoryModal: React.FC<SalesHistoryModalProps> = ({
   visible,
   onClose,
+  storeId,
   onRefundPress,
   onOpenArqueoScreen,
 }) => {
-  const { transactions, arqueo, loading, error, refresh } = useTransactionHistory();
+  const { transactions, arqueo, loading, error, refresh } =
+    useTransactionHistory(storeId);
   const [selectedFilter, setSelectedFilter] = useState<FilterType>("ALL");
 
   useEffect(() => {
     if (visible) refresh();
-  }, [visible, refresh]);
+  }, [storeId, visible, refresh]);
 
   // Client-side filter
   const filteredTransactions = useMemo(() => {

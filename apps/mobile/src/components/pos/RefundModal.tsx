@@ -40,6 +40,7 @@ export interface RefundModalProps {
   visible: boolean;
   /** ID of the transaction to refund. Null means nothing is selected. */
   transactionId: string | null;
+  storeId: string;
   /** Called after the modal is dismissed (refunded or cancelled) */
   onClose: () => void;
   /** Called after a successful refund to trigger parent refresh */
@@ -55,6 +56,7 @@ export interface RefundModalProps {
 export const RefundModal: React.FC<RefundModalProps> = ({
   visible,
   transactionId,
+  storeId,
   onClose,
   onRefundSuccess,
 }) => {
@@ -67,7 +69,7 @@ export const RefundModal: React.FC<RefundModalProps> = ({
   const checkEligibility = useCallback(async (txId: string) => {
     setEligibility({ status: "checking" });
     try {
-      const tx = await getTransactionById(txId);
+      const tx = await getTransactionById(txId, storeId);
       if (!tx) {
         setEligibility({ status: "ineligible", reason: "Transacción no encontrada." });
         return;
@@ -76,7 +78,7 @@ export const RefundModal: React.FC<RefundModalProps> = ({
         setEligibility({ status: "ineligible", reason: "Esta entrada ya es una devolución." });
         return;
       }
-      const alreadyDone = await isAlreadyRefunded(txId);
+      const alreadyDone = await isAlreadyRefunded(txId, storeId);
       if (alreadyDone) {
         setEligibility({ status: "ineligible", reason: "Esta venta ya fue devuelta anteriormente." });
         return;
@@ -86,7 +88,7 @@ export const RefundModal: React.FC<RefundModalProps> = ({
       const message = err instanceof Error ? err.message : "Error desconocido";
       setEligibility({ status: "error", message });
     }
-  }, []);
+  }, [storeId]);
 
   useEffect(() => {
     if (visible && transactionId) {
@@ -99,7 +101,7 @@ export const RefundModal: React.FC<RefundModalProps> = ({
     if (!transactionId) return;
     setIsProcessing(true);
     try {
-      await processFullRefund(transactionId);
+      await processFullRefund(transactionId, storeId);
       onRefundSuccess();
       onClose();
     } catch (err) {
@@ -430,4 +432,3 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
-

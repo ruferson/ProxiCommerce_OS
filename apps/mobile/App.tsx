@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   Text,
@@ -6,9 +6,7 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
-  TouchableOpacity,
 } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Product } from "@proxi-commerce/types";
@@ -16,6 +14,7 @@ import { initDatabase } from "./src/db/schema";
 import { useCatalog } from "./src/hooks/useCatalog";
 import { useCart } from "./src/hooks/useCart";
 import { Header } from "./src/components/layout/Header";
+import { BottomNavigation } from "./src/components/layout/BottomNavigation";
 import { ProductCard } from "./src/components/catalog/ProductCard";
 import { ProductFormModal } from "./src/components/catalog/ProductFormModal";
 import { CartBar } from "./src/components/pos/CartBar";
@@ -29,11 +28,23 @@ import { theme } from "./src/theme";
 import { useSyncEngine } from "./src/hooks/useSyncEngine";
 import { useInitialSync } from "./src/hooks/useInitialSync";
 import { SyncDecisionModal } from "./src/components/sync/SyncDecisionModal";
-
-const DEMO_STORE_ID = "store_local_001";
+import { useAuth } from "./src/hooks/useAuth";
+import { AuthScreen } from "./src/screens/AuthScreen";
+import { CreateStoreScreen } from "./src/screens/CreateStoreScreen";
+import { Button } from "./src/components/ui/Button";
 
 export default function App() {
+  const {
+    session,
+    storeId,
+    storeName,
+    isLoading: isAuthLoading,
+    error: authError,
+    refresh: refreshAuth,
+    signOut,
+  } = useAuth();
   const [isDbReady, setIsDbReady] = useState(false);
+  const [databaseError, setDatabaseError] = useState<string | null>(null);
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [prefilledBarcode, setPrefilledBarcode] = useState<string | undefined>(
@@ -46,129 +57,148 @@ export default function App() {
   const [refundTransactionId, setRefundTransactionId] = useState<string | null>(
     null,
   );
+
   const { isOnline, pendingCount, isSyncing, forceSync } =
-    useSyncEngine(isDbReady);
+    useSyncEngine(isDbReady && Boolean(storeId));
 
   const {
     products,
     loading,
+    error: catalogError,
     addProduct,
     editProduct,
     deleteProduct,
     refreshProducts,
-  } = useCatalog(isDbReady);
-  const initialSync = useInitialSync(DEMO_STORE_ID, refreshProducts);
+  } = useCatalog(storeId, isDbReady && Boolean(storeId));
+  const initialSync = useInitialSync(storeId ?? "", refreshProducts);
+
   const {
     cart,
     total,
     totalItems,
     addToCart,
     removeFromCart,
-    updateQuantity,
     clearCart,
   } = useCart();
 
   useEffect(() => {
-    initDatabase()
-      .then(() => setIsDbReady(true))
-      .catch((err) =>
-        console.error("Error initializing local SQLite DB:", err),
-      );
+    clearCart();
+    setProductModalVisible(false);
+    setHistoryModalVisible(false);
+    setArqueoModalVisible(false);
+    setBarcodeScannerVisible(false);
+    setRefundTransactionId(null);
+    initialSync.closeModal();
+  }, [clearCart, initialSync.closeModal, storeId]);
+
+  const initializeDatabase = useCallback(async () => {
+    setDatabaseError(null);
+    try {
+      await initDatabase();
+      setIsDbReady(true);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to initialize the local database.";
+      console.error("Error initializing local SQLite DB:", error);
+      setDatabaseError(message);
+    }
   }, []);
 
   useEffect(() => {
-    if (isDbReady) {
+    void initializeDatabase();
+  }, [initializeDatabase]);
+
+  useEffect(() => {
+    if (isDbReady && storeId) {
       void initialSync.checkSyncStatus().catch((error) => {
         console.error("[App] Failed to check initial sync status:", error);
-        Alert.alert(
-          "Error de sincronización",
-          "No se pudo comprobar el estado de sincronización.",
-        );
       });
     }
-  }, [initialSync.checkSyncStatus, isDbReady]);
+  }, [initialSync.checkSyncStatus, isDbReady, storeId]);
 
-  const handleOpenAddModal = () => {
-    setEditingProduct(null);
-    setPrefilledBarcode(undefined);
-    setProductModalVisible(true);
+  const requestSignOut = () => {
+    Alert.alert(
+      "Cerrar sesión",
+      "¿Quieres cerrar la sesión de esta cuenta?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Cerrar sesión",
+          style: "destructive",
+          onPress: () => {
+            void signOut().catch((error: unknown) => {
+              const message =
+                error instanceof Error
+                  ? error.message
+                  : "No se pudo cerrar la sesión.";
+              Alert.alert("Error", message);
+            });
+          },
+        },
+      ],
+    );
   };
 
-  const handleOpenEditModal = (product: Product) => {
-    setPrefilledBarcode(undefined);
-    setEditingProduct(product);
-    setProductModalVisible(true);
-  };
+  // Show authentication and store-resolution failures instead of presenting the wrong onboarding screen.
+  if (isAuthLoading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={theme.colors.primary[600]} />
+        <Text style={styles.loadingText}>Verificando sesión...</Text>
+      </View>
+    );
+  }
 
-  const handleSaveProduct = async (
-    productData: Omit<Product, "created_at" | "updated_at">,
-  ) => {
-    if (editingProduct) {
-      await editProduct(productData);
-    } else {
-      await addProduct(productData);
-    }
-  };
+  if (authError) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.centerContainer}>
+          <Text style={styles.loadingText}>
+            No se pudo cargar la cuenta: {authError}
+          </Text>
+          <Button title="Reintentar" onPress={refreshAuth} />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
 
-  /**
-   * Deletes a product from local SQLite storage and evicts it from the active cart if present.
-   */
-  const handleDeleteProduct = async (productId: string) => {
-    // Remove deleted item from the active cart session to keep totals accurate
-    updateQuantity(productId, 0);
-    // Persist deletion to SQLite database
-    await deleteProduct(productId);
-  };
+  if (!session) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container}>
+          <AuthScreen />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
 
-  const handleSuccessfulCheckout = async () => {
-    clearCart();
-    await refreshProducts();
-  };
+  if (!storeId) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container}>
+          <CreateStoreScreen
+            userId={session.user.id}
+            onStoreCreated={refreshAuth}
+          />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
 
-  /**
-   * Fast POS Barcode Scanner Handler.
-   * Looks up product in SQLite by scanned barcode:
-   * - If found and stock > 0: adds directly to cart.
-   * - If found and out of stock: notifies user.
-   * - If not found: offers to register it directly as a new product with the scanned barcode pre-filled.
-   */
-  const handleBarcodeScannedPOS = async (scannedData: string) => {
-    try {
-      const match = await getProductByBarcode(scannedData);
-      if (match) {
-        if (match.stock_count <= 0) {
-          Alert.alert(
-            "Sin stock disponible",
-            `El producto "${match.title}" no dispone de existencias para venta.`,
-          );
-          return;
-        }
-        addToCart(match);
-        setBarcodeScannerVisible(false);
-      } else {
-        // Product not registered yet
-        Alert.alert(
-          "Producto no encontrado",
-          `No existe ningún artículo registrado con el código:\n${scannedData}\n\n¿Deseas darlo de alta ahora?`,
-          [
-            { text: "Seguir escaneando", style: "cancel" },
-            {
-              text: "Crear Producto",
-              style: "default",
-              onPress: () => {
-                setBarcodeScannerVisible(false);
-                setEditingProduct(null);
-                setPrefilledBarcode(scannedData);
-                setProductModalVisible(true);
-              },
-            },
-          ],
-        );
-      }
-    } catch (err) {
-      console.error("Error al buscar producto por código de barras:", err);
-    }
-  };
+  if (databaseError) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.centerContainer}>
+          <Text style={styles.loadingText}>
+            No se pudo iniciar la base de datos: {databaseError}
+          </Text>
+          <Button title="Reintentar" onPress={initializeDatabase} />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
 
   if (!isDbReady || loading) {
     return (
@@ -179,18 +209,28 @@ export default function App() {
     );
   }
 
+  if (catalogError) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.centerContainer}>
+          <Text style={styles.loadingText}>
+            No se pudo cargar el catálogo: {catalogError}
+          </Text>
+          <Button title="Reintentar" onPress={refreshProducts} />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      <SafeAreaView style={styles.container}>
         <StatusBar style="dark" />
 
         <Header
-          title="ProxiCommerce OS"
-          subtitle="Catálogo Local (Offline-First)"
-          onAddPress={handleOpenAddModal}
-          onScanPress={() => setBarcodeScannerVisible(true)}
-          onHistoryPress={() => setHistoryModalVisible(true)}
-          onArqueoPress={() => setArqueoModalVisible(true)}
+          title={storeName || "Mi tienda"}
+          subtitle="Punto de venta"
+          onSignOutPress={requestSignOut}
           isOnline={isOnline}
           pendingSyncCount={pendingCount}
           isSyncing={isSyncing}
@@ -222,47 +262,50 @@ export default function App() {
                 cartQuantity={cartQuantity}
                 onAdd={() => addToCart(item)}
                 onRemove={() => removeFromCart(item.id)}
-                onEdit={() => handleOpenEditModal(item)}
+                onEdit={() => {
+                  setPrefilledBarcode(undefined);
+                  setEditingProduct(item);
+                  setProductModalVisible(true);
+                }}
               />
             );
           }}
+        />
+
+        <BottomNavigation
+          onScanPress={() => setBarcodeScannerVisible(true)}
+          onHistoryPress={() => setHistoryModalVisible(true)}
+          onAddPress={() => {
+            setEditingProduct(null);
+            setPrefilledBarcode(undefined);
+            setProductModalVisible(true);
+          }}
+          onArqueoPress={() => setArqueoModalVisible(true)}
+          onCatalogSyncPress={initialSync.handlePullToRefresh}
+          isCatalogSyncing={
+            initialSync.isRefreshing || initialSync.isProcessing
+          }
         />
 
         <CartBar
           totalItems={totalItems}
           totalPrice={total}
           onCheckoutPress={() => setCheckoutModalVisible(true)}
+          bottomOffset={88}
         />
-
-        <TouchableOpacity
-          style={[
-            styles.syncButton,
-            totalItems > 0 && styles.syncButtonAboveCart,
-          ]}
-          onPress={initialSync.handlePullToRefresh}
-          disabled={initialSync.isRefreshing}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel="Sincronizar catálogo"
-        >
-          {initialSync.isRefreshing ? (
-            <ActivityIndicator size="small" color="#ffffff" />
-          ) : (
-            <MaterialCommunityIcons
-              name="cloud-sync-outline"
-              size={20}
-              color="#ffffff"
-            />
-          )}
-          <Text style={styles.syncButtonText}>Sincronizar</Text>
-        </TouchableOpacity>
 
         <ProductFormModal
           visible={productModalVisible}
           onClose={() => setProductModalVisible(false)}
-          onSave={handleSaveProduct}
-          onDelete={handleDeleteProduct}
-          storeId={DEMO_STORE_ID}
+          onSave={async (productData) => {
+            if (editingProduct) await editProduct(productData);
+            else await addProduct(productData);
+          }}
+          onDelete={async (productId) => {
+            removeFromCart(productId);
+            await deleteProduct(productId);
+          }}
+          storeId={storeId}
           initialProduct={editingProduct}
           initialBarcode={prefilledBarcode}
         />
@@ -272,13 +315,17 @@ export default function App() {
           onClose={() => setCheckoutModalVisible(false)}
           cart={cart}
           total={total}
-          storeId={DEMO_STORE_ID}
+          storeId={storeId}
           onRemoveItem={removeFromCart}
-          onSuccess={handleSuccessfulCheckout}
+          onSuccess={async () => {
+            clearCart();
+            await refreshProducts();
+          }}
         />
 
         <SalesHistoryModal
           visible={historyModalVisible}
+          storeId={storeId}
           onClose={() => setHistoryModalVisible(false)}
           onRefundPress={(txId) => {
             setHistoryModalVisible(false);
@@ -292,12 +339,14 @@ export default function App() {
 
         <ArqueoScreenModal
           visible={arqueoModalVisible}
+          storeId={storeId}
           onClose={() => setArqueoModalVisible(false)}
         />
 
         <RefundModal
           visible={refundTransactionId !== null}
           transactionId={refundTransactionId}
+          storeId={storeId}
           onClose={() => setRefundTransactionId(null)}
           onRefundSuccess={async () => {
             setRefundTransactionId(null);
@@ -308,7 +357,41 @@ export default function App() {
         <BarcodeScannerModal
           visible={barcodeScannerVisible}
           title="Cobro Rápido en Caja"
-          onBarcodeScanned={handleBarcodeScannedPOS}
+          onBarcodeScanned={async (scannedData) => {
+            try {
+              const match = await getProductByBarcode(scannedData, storeId);
+              if (match) {
+                if (match.stock_count <= 0) {
+                  Alert.alert(
+                    "Sin stock",
+                    `El producto "${match.title}" no dispone de stock.`,
+                  );
+                  return;
+                }
+                addToCart(match);
+                setBarcodeScannerVisible(false);
+              } else {
+                Alert.alert(
+                  "No encontrado",
+                  `¿Deseas dar de alta el código ${scannedData}?`,
+                  [
+                    { text: "Cancelar", style: "cancel" },
+                    {
+                      text: "Crear",
+                      onPress: () => {
+                        setBarcodeScannerVisible(false);
+                        setEditingProduct(null);
+                        setPrefilledBarcode(scannedData);
+                        setProductModalVisible(true);
+                      },
+                    },
+                  ],
+                );
+              }
+            } catch (e) {
+              console.error(e);
+            }
+          }}
           onClose={() => setBarcodeScannerVisible(false)}
         />
 
@@ -346,34 +429,7 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xxl * 3,
   },
   listContentWithCartBar: {
-    paddingBottom: theme.spacing.xxl * 4,
-  },
-  syncButton: {
-    position: "absolute",
-    right: theme.spacing.md,
-    bottom: theme.spacing.lg,
-    minHeight: 52,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.primary[600],
-    shadowColor: theme.colors.neutral[900],
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 2,
-  },
-  syncButtonAboveCart: {
-    bottom: theme.spacing.xxl * 3,
-  },
-  syncButtonText: {
-    color: "#ffffff",
-    fontSize: theme.typography.fontSize.sm,
-    fontWeight: theme.typography.fontWeight.semibold,
+    paddingBottom: theme.spacing.xxl * 5,
   },
   emptyContainer: {
     padding: theme.spacing.xxl,

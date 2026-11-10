@@ -19,6 +19,7 @@ export interface CartBarProps {
   totalPrice: number;
   /** Callback handler to trigger checkout modal */
   onCheckoutPress: () => void;
+  bottomOffset?: number;
 }
 
 /**
@@ -31,12 +32,13 @@ export const CartBar: React.FC<CartBarProps> = ({
   totalItems,
   totalPrice,
   onCheckoutPress,
+  bottomOffset = theme.spacing.lg,
 }) => {
   // Do not render floating bar if no items are currently in cart
   if (totalItems === 0) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { bottom: bottomOffset }]}>
       {/* Item count and subtotal amount display */}
       <View style={styles.infoContainer}>
         <Text style={styles.itemCountText}>
@@ -60,7 +62,6 @@ export const CartBar: React.FC<CartBarProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: theme.spacing.lg,
     left: theme.spacing.md,
     right: theme.spacing.md,
     backgroundColor: theme.colors.neutral[900],
@@ -94,4 +95,3 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.xl,
   },
 });
-

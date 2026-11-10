@@ -14,11 +14,11 @@ import { enqueueSyncOperation } from "../db/syncQueue";
  *
  * @returns {Promise<Product[]>} Array of all stored product entities.
  */
-export async function getProducts(): Promise<Product[]> {
+export async function getProducts(storeId: string): Promise<Product[]> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
-  // Retrieve all products sorted so that newest additions appear first
   return await db.getAllAsync<Product>(
-    "SELECT * FROM products ORDER BY created_at DESC;",
+    "SELECT * FROM products WHERE store_id = ? ORDER BY created_at DESC;",
+    [storeId],
   );
 }
 
@@ -61,18 +61,19 @@ export async function createProduct(
 export async function updateProductStock(
   productId: string,
   newStock: number,
+  storeId: string,
 ): Promise<void> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
   // Directly set new stock and update modification timestamp
   await db.runAsync(
-    `UPDATE products SET stock_count = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;`,
-    [newStock, productId],
+    `UPDATE products SET stock_count = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND store_id = ?;`,
+    [newStock, productId, storeId],
   );
 
   // Fetch updated product or enqueue delta for cloud sync
   const updatedProduct = await db.getFirstAsync<Product>(
-    `SELECT * FROM products WHERE id = ?;`,
-    [productId],
+    `SELECT * FROM products WHERE id = ? AND store_id = ?;`,
+    [productId, storeId],
   );
   if (updatedProduct) {
     await enqueueSyncOperation("product", productId, "UPDATE", updatedProduct);
@@ -91,7 +92,7 @@ export async function updateProductDetails(
   const db = await SQLite.openDatabaseAsync(DB_NAME);
   // Update title, price, stock count, barcode, and image path while updating the timestamp
   await db.runAsync(
-    `UPDATE products SET title = ?, price = ?, stock_count = ?, image_uri = ?, barcode = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;`,
+    `UPDATE products SET title = ?, price = ?, stock_count = ?, image_uri = ?, barcode = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND store_id = ?;`,
     [
       product.title,
       product.price,
@@ -99,6 +100,7 @@ export async function updateProductDetails(
       product.image_uri,
       product.barcode ?? null,
       product.id,
+      product.store_id,
     ],
   );
 
@@ -114,11 +116,12 @@ export async function updateProductDetails(
  */
 export async function getProductByBarcode(
   barcode: string,
+  storeId: string,
 ): Promise<Product | null> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
   const row = await db.getFirstAsync<Product>(
-    `SELECT * FROM products WHERE barcode = ? LIMIT 1;`,
-    [barcode.trim()],
+    `SELECT * FROM products WHERE barcode = ? AND store_id = ? LIMIT 1;`,
+    [barcode.trim(), storeId],
   );
   return row ?? null;
 }
@@ -129,13 +132,19 @@ export async function getProductByBarcode(
  * @param {string} productId - Unique product identifier to remove.
  * @returns {Promise<void>} Resolves when the product record has been deleted.
  */
-export async function deleteProduct(productId: string): Promise<void> {
+export async function deleteProduct(
+  productId: string,
+  storeId: string,
+): Promise<void> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
-  // Execute deletion of the target product
-  await db.runAsync(`DELETE FROM products WHERE id = ?;`, [productId]);
+  await db.runAsync(`DELETE FROM products WHERE id = ? AND store_id = ?;`, [
+    productId,
+    storeId,
+  ]);
 
   // Queue deletion for cloud sync
-  await enqueueSyncOperation("product", productId, "DELETE", { id: productId });
+  await enqueueSyncOperation("product", productId, "DELETE", {
+    id: productId,
+    store_id: storeId,
+  });
 }
-
-

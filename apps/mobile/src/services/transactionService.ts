@@ -5,7 +5,7 @@
  */
 
 import * as SQLite from "expo-sqlite";
-import { CartItem, TransactionType } from "@proxi-commerce/types";
+import { CartItem, Product, TransactionType } from "@proxi-commerce/types";
 import { DB_NAME } from "../db/schema";
 import { enqueueSyncOperation } from "../db/syncQueue";
 
@@ -57,14 +57,14 @@ export async function createTransaction(
     // 2. Decrement available product stock in SQLite for each sold item
     for (const item of input.items) {
       await db.runAsync(
-        `UPDATE products SET stock_count = stock_count - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;`,
-        [item.quantity, item.product.id],
+        `UPDATE products SET stock_count = stock_count - ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND store_id = ?;`,
+        [item.quantity, item.product.id, input.storeId],
       );
 
       // Fetch updated product record to enqueue stock change for cloud synchronization
-      const updatedProd = await db.getFirstAsync<any>(
-        `SELECT * FROM products WHERE id = ?;`,
-        [item.product.id],
+      const updatedProd = await db.getFirstAsync<Product>(
+        `SELECT * FROM products WHERE id = ? AND store_id = ?;`,
+        [item.product.id, input.storeId],
       );
       if (updatedProd) {
         await enqueueSyncOperation(

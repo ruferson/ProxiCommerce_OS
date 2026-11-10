@@ -13,7 +13,7 @@ export const DB_NAME = "proxi_commerce.db";
 
 /**
  * Initializes the local SQLite database, sets performance and integrity pragmas,
- * and creates all required tables (`store`, `products`, and `transactions`) if they do not exist.
+ * and creates the tables required by the mobile app if they do not exist.
  *
  * @returns {Promise<SQLite.SQLiteDatabase>} Open SQLite database instance.
  */
@@ -98,34 +98,24 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
     );
 
     -- Indexes for high-throughput offline queries
-    CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
     CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue(status, created_at);
   `);
 
-  // Migrate existing products table if barcode column does not exist yet
-  try {
-    await db.execAsync(`ALTER TABLE products ADD COLUMN barcode TEXT UNIQUE;`);
-  } catch {
-    // Column already exists or already defined
+  const productColumns = await db.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(products);",
+  );
+  if (!productColumns.some((column) => column.name === "barcode")) {
+    await db.execAsync("ALTER TABLE products ADD COLUMN barcode TEXT;");
+  }
+
+  const transactionColumns = await db.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(transactions);",
+  );
+  if (!transactionColumns.some((column) => column.name === "refund_for_id")) {
+    await db.execAsync(
+      "ALTER TABLE transactions ADD COLUMN refund_for_id TEXT REFERENCES transactions(id);",
+    );
   }
 
   return db;
 }
-
-/**
- * @description Table to track local mutations that need to be synced to the cloud.
- * Implements the core of the offline-first architecture.
- */
-export const SYNC_QUEUE_SCHEMA = `
-  CREATE TABLE IF NOT EXISTS sync_queue (
-    id TEXT PRIMARY KEY,
-    entity_type TEXT NOT NULL,
-    entity_id TEXT NOT NULL,
-    operation TEXT NOT NULL,
-    payload TEXT NOT NULL,
-    status TEXT DEFAULT 'PENDING',
-    attempts INTEGER DEFAULT 0,
-    error_message TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
-`;
