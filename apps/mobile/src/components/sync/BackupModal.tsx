@@ -18,6 +18,7 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
+import { AccessTokenRequest } from "expo-auth-session";
 import { Button } from "../ui/Button";
 import { theme } from "../../theme";
 import {
@@ -66,6 +67,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({
     androidClientId: androidClientId ?? CLIENT_ID_PLACEHOLDER,
     webClientId: webClientId ?? CLIENT_ID_PLACEHOLDER,
     scopes: ["https://www.googleapis.com/auth/drive.file"],
+    shouldAutoExchangeCode: false,
   });
 
   const getAccessToken = async (): Promise<string | null> => {
@@ -97,7 +99,27 @@ export const BackupModal: React.FC<BackupModalProps> = ({
       );
     }
 
-    const accessToken = result.authentication?.accessToken;
+    let accessToken =
+      result.type === "success"
+        ? result.authentication?.accessToken ?? result.params.access_token
+        : undefined;
+    if (!accessToken && result.type === "success" && result.params.code) {
+      if (!request.codeVerifier) {
+        throw new Error(
+          "No se pudo completar PKCE para Google Drive. Cierra la ventana y vuelve a intentarlo.",
+        );
+      }
+
+      const tokenResponse = await new AccessTokenRequest({
+        clientId: request.clientId,
+        code: result.params.code,
+        redirectUri: request.redirectUri,
+        scopes: request.scopes,
+        extraParams: { code_verifier: request.codeVerifier },
+      }).performAsync(Google.discovery);
+      accessToken = tokenResponse.accessToken;
+    }
+
     if (!accessToken) {
       throw new Error(
         "Google no devolvió un token de acceso. Revisa los clientes OAuth y el redirect URI.",
