@@ -24,12 +24,20 @@ export interface SyncQueueItem {
 }
 
 let queueListener: (() => void) | null = null;
+let cloudSyncEnabled = false;
 
 /**
  * Registers a callback invoked whenever a new mutation is added to the queue.
  */
 export function setSyncQueueListener(listener: () => void): void {
   queueListener = listener;
+}
+
+/**
+ * Controls whether local mutations should be queued for Supabase synchronization.
+ */
+export function setSyncQueueEnabled(enabled: boolean): void {
+  cloudSyncEnabled = enabled;
 }
 
 /**
@@ -57,6 +65,8 @@ export async function enqueueSyncOperation(
   operation: SyncOperation,
   payload: any,
 ): Promise<void> {
+  if (!cloudSyncEnabled) return;
+
   try {
     const db = await SQLite.openDatabaseAsync(DB_NAME);
     const syncId = generateSyncId();

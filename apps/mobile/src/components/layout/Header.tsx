@@ -5,12 +5,7 @@
  */
 
 import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { SyncBadge } from "../ui/SyncBadge";
 import { theme } from "../../theme";
@@ -20,10 +15,14 @@ export interface HeaderProps {
   title: string;
   /** Subtitle context string (e.g., terminal ID or active section) */
   subtitle: string;
+  /** Opens the manual Google Drive backup and restore modal */
+  onBackupPress: () => void;
   /** Signs out the current user */
   onSignOutPress: () => void;
   /** Device online status */
   isOnline: boolean;
+  /** Whether Supabase cloud synchronization is enabled */
+  isCloudSyncEnabled: boolean;
   /** Count of pending offline operations in SQLite queue */
   pendingSyncCount: number;
   /** Active sync indicator state */
@@ -35,8 +34,10 @@ export interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   title,
   subtitle,
+  onBackupPress,
   onSignOutPress,
   isOnline,
+  isCloudSyncEnabled,
   pendingSyncCount,
   isSyncing,
   onSyncPress,
@@ -63,14 +64,29 @@ export const Header: React.FC<HeaderProps> = ({
 
         <View style={styles.accountActions}>
           <SyncBadge
+            isEnabled={isCloudSyncEnabled}
             isOnline={isOnline}
             pendingCount={pendingSyncCount}
             isSyncing={isSyncing}
             onSyncPress={onSyncPress}
           />
           <TouchableOpacity
+            onPress={onBackupPress}
+            style={styles.actionButton}
+            activeOpacity={0.7}
+            accessibilityLabel="Copia manual en Google Drive"
+            accessibilityHint="Exporta o restaura una copia; no sincroniza automáticamente"
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons
+              name="google-drive"
+              size={20}
+              color={theme.colors.neutral[600]}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={onSignOutPress}
-            style={styles.signOutButton}
+            style={styles.actionButton}
             activeOpacity={0.7}
             accessibilityLabel="Cerrar sesión"
             accessibilityRole="button"
@@ -136,7 +152,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: theme.spacing.xs,
   },
-  signOutButton: {
+  actionButton: {
     width: 42,
     height: 42,
     borderRadius: theme.borderRadius.lg,

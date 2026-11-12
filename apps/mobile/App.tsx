@@ -28,6 +28,8 @@ import { theme } from "./src/theme";
 import { useSyncEngine } from "./src/hooks/useSyncEngine";
 import { useInitialSync } from "./src/hooks/useInitialSync";
 import { SyncDecisionModal } from "./src/components/sync/SyncDecisionModal";
+import { BackupModal } from "./src/components/sync/BackupModal";
+import { setCloudSyncEnabled } from "./src/services/syncService";
 import { useAuth } from "./src/hooks/useAuth";
 import { AuthScreen } from "./src/screens/AuthScreen";
 import { CreateStoreScreen } from "./src/screens/CreateStoreScreen";
@@ -43,6 +45,8 @@ export default function App() {
     refresh: refreshAuth,
     signOut,
   } = useAuth();
+  const cloudSyncEnabled =
+    session?.user.user_metadata?.cloud_sync_enabled === true;
   const [isDbReady, setIsDbReady] = useState(false);
   const [databaseError, setDatabaseError] = useState<string | null>(null);
   const [productModalVisible, setProductModalVisible] = useState(false);
@@ -54,12 +58,14 @@ export default function App() {
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [arqueoModalVisible, setArqueoModalVisible] = useState(false);
   const [barcodeScannerVisible, setBarcodeScannerVisible] = useState(false);
+  const [backupModalVisible, setBackupModalVisible] = useState(false);
   const [refundTransactionId, setRefundTransactionId] = useState<string | null>(
     null,
   );
 
-  const { isOnline, pendingCount, isSyncing, forceSync } =
-    useSyncEngine(isDbReady && Boolean(storeId));
+  const { isOnline, pendingCount, isSyncing, forceSync } = useSyncEngine(
+    isDbReady && Boolean(storeId) && cloudSyncEnabled,
+  );
 
   const {
     products,
@@ -70,16 +76,14 @@ export default function App() {
     deleteProduct,
     refreshProducts,
   } = useCatalog(storeId, isDbReady && Boolean(storeId));
-  const initialSync = useInitialSync(storeId ?? "", refreshProducts);
+  const initialSync = useInitialSync(
+    storeId ?? "",
+    refreshProducts,
+    cloudSyncEnabled,
+  );
 
-  const {
-    cart,
-    total,
-    totalItems,
-    addToCart,
-    removeFromCart,
-    clearCart,
-  } = useCart();
+  const { cart, total, totalItems, addToCart, removeFromCart, clearCart } =
+    useCart();
 
   useEffect(() => {
     clearCart();
@@ -87,6 +91,7 @@ export default function App() {
     setHistoryModalVisible(false);
     setArqueoModalVisible(false);
     setBarcodeScannerVisible(false);
+    setBackupModalVisible(false);
     setRefundTransactionId(null);
     initialSync.closeModal();
   }, [clearCart, initialSync.closeModal, storeId]);
@@ -111,34 +116,34 @@ export default function App() {
   }, [initializeDatabase]);
 
   useEffect(() => {
-    if (isDbReady && storeId) {
+    setCloudSyncEnabled(cloudSyncEnabled);
+  }, [cloudSyncEnabled]);
+
+  useEffect(() => {
+    if (isDbReady && storeId && cloudSyncEnabled) {
       void initialSync.checkSyncStatus().catch((error) => {
         console.error("[App] Failed to check initial sync status:", error);
       });
     }
-  }, [initialSync.checkSyncStatus, isDbReady, storeId]);
+  }, [cloudSyncEnabled, initialSync.checkSyncStatus, isDbReady, storeId]);
 
   const requestSignOut = () => {
-    Alert.alert(
-      "Cerrar sesión",
-      "¿Quieres cerrar la sesión de esta cuenta?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Cerrar sesión",
-          style: "destructive",
-          onPress: () => {
-            void signOut().catch((error: unknown) => {
-              const message =
-                error instanceof Error
-                  ? error.message
-                  : "No se pudo cerrar la sesión.";
-              Alert.alert("Error", message);
-            });
-          },
+    Alert.alert("Cerrar sesión", "¿Quieres cerrar la sesión de esta cuenta?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Cerrar sesión",
+        style: "destructive",
+        onPress: () => {
+          void signOut().catch((error: unknown) => {
+            const message =
+              error instanceof Error
+                ? error.message
+                : "No se pudo cerrar la sesión.";
+            Alert.alert("Error", message);
+          });
         },
-      ],
-    );
+      },
+    ]);
   };
 
   // Show authentication and store-resolution failures instead of presenting the wrong onboarding screen.
@@ -230,8 +235,10 @@ export default function App() {
         <Header
           title={storeName || "Mi tienda"}
           subtitle="Punto de venta"
+          onBackupPress={() => setBackupModalVisible(true)}
           onSignOutPress={requestSignOut}
           isOnline={isOnline}
+          isCloudSyncEnabled={cloudSyncEnabled}
           pendingSyncCount={pendingCount}
           isSyncing={isSyncing}
           onSyncPress={forceSync}
@@ -282,6 +289,7 @@ export default function App() {
           }}
           onArqueoPress={() => setArqueoModalVisible(true)}
           onCatalogSyncPress={initialSync.handlePullToRefresh}
+          isCloudSyncEnabled={cloudSyncEnabled}
           isCatalogSyncing={
             initialSync.isRefreshing || initialSync.isProcessing
           }
@@ -402,6 +410,13 @@ export default function App() {
           onOverwriteLocal={initialSync.handleOverwriteLocal}
           onOverwriteRemote={initialSync.handleOverwriteRemote}
           onCancel={initialSync.closeModal}
+        />
+
+        <BackupModal
+          visible={backupModalVisible}
+          storeId={storeId}
+          onClose={() => setBackupModalVisible(false)}
+          onRestoreComplete={refreshProducts}
         />
       </SafeAreaView>
     </SafeAreaProvider>

@@ -20,7 +20,7 @@
 
 **ProxiCommerce OS** is an open-source project exploring an offline-first commerce platform for physical merchants, pop-up stores, and neighborhood retail. The **Turborepo monorepo** contains an Expo/React Native POS app, an early-stage Next.js storefront, and shared TypeScript domain types.
 
-The mobile app stores catalog and transaction data locally in SQLite and queues supported changes for synchronization when connectivity is available. The project is still evolving: cloud integration, security policies, and the web storefront need further development and validation before production use.
+The mobile app stores catalog and transaction data locally in SQLite. New users can opt in to automatic Supabase synchronization; manual Google Drive backups are a separate export/restore feature. The project is still evolving: cloud integration, security policies, and the web storefront need further development and validation before production use.
 
 ## 🚧 Development Status
 
@@ -40,12 +40,13 @@ All parts of this repository are in development. Expect incomplete workflows, ch
 - **Local-first data**: SQLite storage via `expo-sqlite`, with write-ahead logging and transaction support.
 - **Point-of-sale flow**: Product catalog, cart, cash checkout with change calculation, and card/NFC payment selection.
 - **Inventory and sales records**: Checkout updates local stock and stores transaction snapshots; sales history and refund flows are implemented locally.
-- **Cash closing**: Daily cash reconciliation and closure records can be stored locally and queued for cloud sync.
+- **Cash closing**: Daily cash reconciliation and closure records can be stored locally and optionally queued for Supabase sync.
 - **Store accounts**: Supabase email/password authentication and merchant store onboarding are wired into the mobile app.
 - **Product & Inventory Management**:
   - Add, edit, update stock, scan barcodes, and remove products.
   - Capture product images locally; image upload requires the matching Supabase Storage bucket.
-- **Queued synchronization**: Supported product, transaction, and closure changes are queued locally and sent to Supabase when online.
+- **Optional Supabase synchronization**: New accounts can opt in during registration. When enabled, supported product, transaction, and closure changes are sent to Supabase when online.
+- **Manual Google Drive backups**: Export or restore a store-scoped snapshot on demand; this is not device-to-device synchronization.
 - **POS interface**: Shared theme tokens and reusable UI components, including a bottom navigation bar.
 
 ### 🌐 Next.js Web Storefront (`apps/web`)
@@ -146,7 +147,80 @@ Without these values, cloud authentication and synchronization are unavailable; 
 development can still start. Configure the database and Storage bucket separately, and
 review the development RLS policies before using any real data.
 
-### 3. Development Mode
+### 3. Optional Supabase sync and manual Google Drive backups
+
+These are separate features:
+
+- **Supabase sync** is optional and off by default at registration. If enabled, the app
+  queues supported changes and sends them to Supabase when internet is available. The
+  `Supabase` action in the bottom navigation opens the catalog replacement/conciliation
+  flow; the status badge in the header reports the automatic queue.
+- **Google Drive backup** is always a user-initiated export or restore. It does not keep
+  devices synchronized and does not change Supabase. It includes products, sales, and
+  cash closures for the active store only. Restoring replaces those records on this
+  device after confirmation. The JSON snapshot is not encrypted by the app; device-local
+  image files are not included (remote image URLs are kept and device-local image paths
+  are cleared in the exported snapshot).
+
+#### Google Cloud Console
+
+The supplied screenshots show the `ProxiCommerce-OS` project, an enabled Google Drive
+API, and existing Android and Web OAuth clients. Verify the following settings:
+
+1. Keep **Google Drive API** enabled in **APIs & Services → Enabled APIs & services**.
+2. Configure the OAuth consent screen for the intended audience. While the app is in
+   Testing, add the Google accounts that will use it as test users. Request only the
+   `https://www.googleapis.com/auth/drive.file` scope used by the app.
+3. For the existing **Android** OAuth client, confirm the package name is
+   `com.proxicommerce.app`. Add the SHA-1 fingerprints for every signing certificate
+   used to install the app (local debug, EAS build, and Google Play app-signing
+   certificate if applicable). For EAS/Play fingerprints, use the credentials shown
+   by EAS and Play Console; do not assume the local debug certificate is sufficient.
+4. For the existing **Web application** OAuth client, use its client ID for
+   `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`. If using the Expo web build, configure the
+   authorized JavaScript origins and redirect URI for that actual web deployment.
+5. The screenshots do not show an **iOS** OAuth client. Create one with bundle ID
+   `com.proxicommerce.app` and use its client ID for
+   `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`. For Android, set
+   `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` to the Android client ID.
+6. Do not create an API key or put an OAuth client secret in the app. These are native
+   OAuth clients; the app requests a short-lived access token and stores no refresh
+   token. No service account is needed.
+
+Google sign-in for the app is handled by **Supabase OAuth with PKCE** and a system
+browser, on both Android and iOS. In Supabase Dashboard → Authentication → Sign In /
+Providers → Google, configure the **Web application** OAuth client ID and its client
+secret on the server. Add the Supabase callback URL shown on that page to the Web
+client's authorized redirect URIs. In Supabase Authentication → URL Configuration,
+allow `proxicommerce://auth/callback` as a redirect URL. The app exchanges the returned
+authorization code with Supabase; it does not receive or validate a Google ID token.
+Therefore this login flow does not need a reversed iOS Google client-ID scheme or
+native Google Sign-In SDK. Google Android/iOS client IDs in the app are used for the
+separate, direct-to-Drive backup authorization.
+
+For direct Google Drive authorization, Expo AuthSession returns to
+`com.proxicommerce.app:/oauthredirect`; Expo registers that scheme in the Android
+manifest and iOS `CFBundleURLTypes`. For Supabase sign-in, `proxicommerce` is registered
+as the app callback scheme on both platforms.
+
+After setting IDs in `apps/mobile/.env` (copy the names from
+[`apps/mobile/.env.example`](./apps/mobile/.env.example)), rebuild the native app with
+`npx expo run:android` or `npx expo run:ios`. OAuth client IDs are public identifiers,
+not secrets.
+
+Because `.env` files are gitignored, also add the required
+`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, and
+`EXPO_PUBLIC_GOOGLE_*_CLIENT_ID` values to the matching EAS development, preview, and
+production environments before cloud builds. The Google IDs are public; do not add a
+Google client secret to EAS build variables or the mobile app. The Google web client
+secret belongs only in the Supabase Google-provider settings.
+
+The access to Drive is restricted to files created or opened by this app through
+`drive.file`. The app lists only its own backup files tagged for the active store.
+Existing raw SQLite `.db` exports from older versions are not compatible with this
+store-scoped JSON backup format.
+
+### 4. Development Mode
 
 Run all workspace applications (Mobile & Web) concurrently:
 

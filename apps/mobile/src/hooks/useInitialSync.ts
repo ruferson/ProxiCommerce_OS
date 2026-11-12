@@ -16,6 +16,7 @@ import {
 export function useInitialSync(
   storeId: string,
   onSyncComplete?: () => void | Promise<void>,
+  enabled = true,
 ) {
   const [modalVisible, setModalVisible] = useState(false);
   const [localCount, setLocalCount] = useState(0);
@@ -24,6 +25,8 @@ export function useInitialSync(
 
   // Checks network and local product count before prompting user
   const checkSyncStatus = useCallback(async (showConfigurationError = false) => {
+    if (!enabled) return;
+
     if (
       !process.env.EXPO_PUBLIC_SUPABASE_URL ||
       !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
@@ -53,9 +56,11 @@ export function useInitialSync(
 
     // If local database is empty or user manually triggered refresh, open prompt modal
     setModalVisible(true);
-  }, [storeId]);
+  }, [enabled, storeId]);
 
   const handleOverwriteLocal = useCallback(async () => {
+    if (!enabled) return;
+
     try {
       setIsProcessing(true);
       await overwriteLocalWithRemote(storeId);
@@ -70,9 +75,11 @@ export function useInitialSync(
     } finally {
       setIsProcessing(false);
     }
-  }, [onSyncComplete, storeId]);
+  }, [enabled, onSyncComplete, storeId]);
 
   const overwriteRemote = useCallback(async () => {
+    if (!enabled) return;
+
     try {
       setIsProcessing(true);
       await overwriteRemoteWithLocal(storeId);
@@ -87,9 +94,11 @@ export function useInitialSync(
     } finally {
       setIsProcessing(false);
     }
-  }, [onSyncComplete, storeId]);
+  }, [enabled, onSyncComplete, storeId]);
 
   const handleOverwriteRemote = useCallback(() => {
+    if (!enabled) return;
+
     Alert.alert(
       "Reemplazar catálogo en la nube",
       localCount === 0
@@ -106,7 +115,7 @@ export function useInitialSync(
         },
       ],
     );
-  }, [localCount, overwriteRemote]);
+  }, [enabled, localCount, overwriteRemote]);
 
   const handlePullToRefresh = useCallback(async () => {
     setIsRefreshing(true);

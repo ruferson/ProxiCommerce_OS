@@ -16,6 +16,8 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { theme } from "../../theme";
 
 export interface SyncBadgeProps {
+  /** Whether automatic synchronization with Supabase was enabled at sign-up */
+  isEnabled: boolean;
   /** Current network status */
   isOnline: boolean;
   /** Current count of pending operations */
@@ -27,11 +29,25 @@ export interface SyncBadgeProps {
 }
 
 export const SyncBadge: React.FC<SyncBadgeProps> = ({
+  isEnabled,
   isOnline,
   pendingCount,
   isSyncing,
   onSyncPress,
 }) => {
+  if (!isEnabled) {
+    return (
+      <View style={[styles.badge, styles.disabledBadge]}>
+        <MaterialCommunityIcons
+          name="cloud-off-outline"
+          size={14}
+          color={theme.colors.neutral[500]}
+        />
+        <Text style={styles.disabledText}>Supabase desactivado</Text>
+      </View>
+    );
+  }
+
   // 1. Device Offline State
   if (!isOnline) {
     return (
@@ -41,7 +57,9 @@ export const SyncBadge: React.FC<SyncBadgeProps> = ({
           size={14}
           color={theme.colors.status.warning}
         />
-        <Text style={styles.offlineText}>Modo Offline ({pendingCount})</Text>
+        <Text style={styles.offlineText}>
+          Supabase offline ({pendingCount})
+        </Text>
       </View>
     );
   }
@@ -51,7 +69,7 @@ export const SyncBadge: React.FC<SyncBadgeProps> = ({
     return (
       <View style={[styles.badge, styles.syncingBadge]}>
         <ActivityIndicator size="small" color={theme.colors.primary[600]} />
-        <Text style={styles.syncingText}>Sincronizando...</Text>
+        <Text style={styles.syncingText}>Enviando a Supabase...</Text>
       </View>
     );
   }
@@ -69,7 +87,9 @@ export const SyncBadge: React.FC<SyncBadgeProps> = ({
           size={14}
           color={theme.colors.primary[600]}
         />
-        <Text style={styles.pendingText}>{pendingCount} pendientes</Text>
+        <Text style={styles.pendingText}>
+          {pendingCount} pendientes Supabase
+        </Text>
       </TouchableOpacity>
     );
   }
@@ -82,7 +102,7 @@ export const SyncBadge: React.FC<SyncBadgeProps> = ({
         size={14}
         color={theme.colors.status.success}
       />
-      <Text style={styles.syncedText}>Al día</Text>
+      <Text style={styles.syncedText}>Supabase al día</Text>
     </View>
   );
 };
@@ -131,5 +151,13 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.xs,
     fontWeight: theme.typography.fontWeight.semibold,
     color: theme.colors.status.success,
+  },
+  disabledBadge: {
+    backgroundColor: theme.colors.neutral[100],
+  },
+  disabledText: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.medium,
+    color: theme.colors.neutral[600],
   },
 });

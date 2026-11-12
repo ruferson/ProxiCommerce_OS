@@ -21,10 +21,12 @@ export interface BottomNavigationProps {
   onArqueoPress: () => void;
   onCatalogSyncPress: () => void;
   isCatalogSyncing: boolean;
+  isCloudSyncEnabled: boolean;
 }
 
 interface NavigationItemProps {
   label: string;
+  accessibilityLabel?: string;
   icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
   onPress: () => void;
   color?: string;
@@ -34,6 +36,7 @@ interface NavigationItemProps {
 
 const NavigationItem: React.FC<NavigationItemProps> = ({
   label,
+  accessibilityLabel,
   icon,
   onPress,
   color = theme.colors.neutral[600],
@@ -45,7 +48,7 @@ const NavigationItem: React.FC<NavigationItemProps> = ({
     style={styles.navigationItem}
     activeOpacity={0.7}
     disabled={disabled}
-    accessibilityLabel={label}
+    accessibilityLabel={accessibilityLabel ?? label}
     accessibilityRole="button"
   >
     {loading ? (
@@ -66,6 +69,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
   onArqueoPress,
   onCatalogSyncPress,
   isCatalogSyncing,
+  isCloudSyncEnabled,
 }) => (
   <View style={styles.container}>
     <NavigationItem
@@ -100,11 +104,20 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
       color={theme.colors.payment.cash}
     />
     <NavigationItem
-      label="Catálogo"
+      label={isCloudSyncEnabled ? "Catálogo" : "Nube off"}
+      accessibilityLabel={
+        isCloudSyncEnabled
+          ? "Conciliar el catálogo con Supabase; no es la copia de Google Drive"
+          : "Sincronización automática con Supabase desactivada"
+      }
       icon="cloud-sync-outline"
       onPress={onCatalogSyncPress}
-      color={theme.colors.primary[600]}
-      disabled={isCatalogSyncing}
+      color={
+        isCloudSyncEnabled
+          ? theme.colors.primary[600]
+          : theme.colors.neutral[400]
+      }
+      disabled={!isCloudSyncEnabled || isCatalogSyncing}
       loading={isCatalogSyncing}
     />
   </View>

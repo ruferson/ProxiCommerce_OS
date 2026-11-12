@@ -1,4 +1,15 @@
 {
+  "scheme": "proxicommerce",
+  "ios": {
+    "bundleIdentifier": "com.proxicommerce.app"
+  },
+  "android": {
+    "package": "com.proxicommerce.app",
+    "scheme": "com.proxicommerce.app",
+    "permissions": [
+      "android.permission.CAMERA"
+    ]
+  },
   "plugins": [
     [
       "expo-camera",
@@ -17,6 +28,14 @@
       }
     ],
     "expo-sqlite",
-    "expo-status-bar"
-  ]
+    "expo-status-bar",
+    "expo-web-browser"
+  ],
+  "extra": {
+    "eas": {
+      "projectId": "8b8ac434-f171-4a96-8560-0e1791f5e379"
+    }
+  },
+  "owner": "rufersons-team",
+  "slug": "proxycommerceos"
 }

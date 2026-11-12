@@ -30,10 +30,11 @@ export const SyncDecisionModal: React.FC<SyncDecisionModalProps> = ({
     <Modal visible={visible} animationType="fade" transparent>
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <Text style={styles.title}>Sincronización de Datos</Text>
+          <Text style={styles.title}>Conciliar catálogo de Supabase</Text>
           <Text style={styles.description}>
-            Se ha detectado conexión con la nube. ¿Cómo deseas proceder con los
-            datos del catálogo?
+            Elige qué catálogo de productos conservar entre este dispositivo y
+            Supabase. Esta acción no crea una copia de seguridad de Google Drive
+            ni sincroniza ventas o cierres.
           </Text>
 
           <View style={styles.infoBox}>

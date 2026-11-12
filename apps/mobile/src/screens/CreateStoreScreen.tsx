@@ -75,8 +75,9 @@ export const CreateStoreScreen: React.FC<CreateStoreScreenProps> = ({
       <View style={styles.card}>
         <Text style={styles.title}>Configura tu Tienda</Text>
         <Text style={styles.subtitle}>
-          Introduce los datos de tu comercio físico para empezar a vender y
-          sincronizar inventario.
+          Introduce los datos de tu comercio físico para empezar a vender. La
+          sincronización automática con Supabase depende de la opción elegida al
+          registrarte.
         </Text>
 
         <TextInput

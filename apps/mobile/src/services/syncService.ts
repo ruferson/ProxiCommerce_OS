@@ -13,14 +13,22 @@ import { uploadProductImage } from "./storageService";
 import {
   getPendingSyncItems,
   updateSyncItemStatus,
+  setSyncQueueEnabled,
   setSyncQueueListener,
   SyncQueueItem,
 } from "../db/syncQueue";
 
 let isSyncing = false;
+let cloudSyncEnabled = false;
+
+export function setCloudSyncEnabled(enabled: boolean): void {
+  cloudSyncEnabled = enabled;
+  setSyncQueueEnabled(enabled);
+}
 
 // Automatically wake up worker whenever a mutation is added
 setSyncQueueListener(() => {
+  if (!cloudSyncEnabled) return;
   triggerUpstreamSync().catch((err) =>
     console.warn("[SyncService] Auto-sync error:", err),
   );
@@ -167,7 +175,7 @@ export async function triggerUpstreamSync(): Promise<{
   syncedCount: number;
   errorsCount: number;
 }> {
-  if (isSyncing) {
+  if (!cloudSyncEnabled || isSyncing) {
     return { syncedCount: 0, errorsCount: 0 };
   }
 

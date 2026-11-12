@@ -12,16 +12,23 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Switch,
 } from "react-native";
+import * as WebBrowser from "expo-web-browser";
 import { supabase } from "../lib/supabase";
 import { TextInput } from "../components/ui/TextInput";
 import { Button } from "../components/ui/Button";
 import { theme } from "../theme";
 
+const GOOGLE_OAUTH_REDIRECT_URI = "proxicommerce://auth/callback";
+
+WebBrowser.maybeCompleteAuthSession();
+
 export const AuthScreen: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
+  const [cloudSyncEnabled, setCloudSyncEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleAuthAction = async () => {
@@ -39,6 +46,9 @@ export const AuthScreen: React.FC = () => {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
+          options: {
+            data: { cloud_sync_enabled: cloudSyncEnabled },
+          },
         });
         if (error) throw error;
         if (data.session) {
@@ -74,6 +84,70 @@ export const AuthScreen: React.FC = () => {
     }
   };
 
+  const handleGoogleAuth = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: GOOGLE_OAUTH_REDIRECT_URI,
+          skipBrowserRedirect: true,
+          scopes: "openid email profile",
+        },
+      });
+
+      if (error) throw error;
+      if (!data.url) {
+        throw new Error("Supabase no devolvió la URL de autorización de Google.");
+      }
+
+      const authResult = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        GOOGLE_OAUTH_REDIRECT_URI,
+      );
+      if (authResult.type === "cancel" || authResult.type === "dismiss") return;
+      if (authResult.type !== "success") {
+        throw new Error("No se completó el inicio de sesión con Google.");
+      }
+
+      const callbackUrl = new URL(authResult.url);
+      const callbackError =
+        callbackUrl.searchParams.get("error_description") ??
+        callbackUrl.searchParams.get("error");
+      if (callbackError) throw new Error(callbackError);
+
+      const code = callbackUrl.searchParams.get("code");
+      if (!code) {
+        throw new Error(
+          "La respuesta de autenticación no contiene un código OAuth. Comprueba los redirect URLs de Supabase.",
+        );
+      }
+
+      const { data: sessionData, error: exchangeError } =
+        await supabase.auth.exchangeCodeForSession(code);
+      if (exchangeError) throw exchangeError;
+
+      if (
+        isSignUp &&
+        sessionData.user.user_metadata.cloud_sync_enabled === undefined
+      ) {
+        const { error: metadataError } = await supabase.auth.updateUser({
+          data: { cloud_sync_enabled: cloudSyncEnabled },
+        });
+        if (metadataError) throw metadataError;
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "No se pudo iniciar sesión con Google.";
+      console.error("[AuthScreen] Google OAuth failed:", error);
+      Alert.alert("Error de autenticación con Google", errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -104,12 +178,52 @@ export const AuthScreen: React.FC = () => {
           onChangeText={setPassword}
         />
 
+        {isSignUp && (
+          <View style={styles.syncOption}>
+            <View style={styles.syncOptionText}>
+              <Text style={styles.syncOptionTitle}>
+                Sincronización automática con Supabase
+              </Text>
+              <Text style={styles.syncOptionDescription}>
+                Envía los cambios de productos, ventas y cierres cuando haya
+                conexión. Es opcional; las copias manuales de Google Drive son
+                independientes.
+              </Text>
+            </View>
+            <Switch
+              value={cloudSyncEnabled}
+              onValueChange={setCloudSyncEnabled}
+              disabled={loading}
+              accessibilityLabel="Activar sincronización automática con Supabase"
+              trackColor={{
+                false: theme.colors.neutral[300],
+                true: theme.colors.primary[400],
+              }}
+              thumbColor={
+                cloudSyncEnabled
+                  ? theme.colors.primary[700]
+                  : theme.colors.neutral[100]
+              }
+            />
+          </View>
+        )}
+
         <Button
           title={isSignUp ? "Registrarse" : "Iniciar Sesión"}
           variant="primary"
           loading={loading}
           onPress={handleAuthAction}
           style={styles.button}
+        />
+
+        <Text style={styles.alternativeText}>o</Text>
+
+        <Button
+          title="Continuar con Google"
+          variant="outline"
+          disabled={loading}
+          onPress={handleGoogleAuth}
+          style={styles.googleButton}
         />
 
         <Button
@@ -164,5 +278,37 @@ const styles = StyleSheet.create({
   },
   switchButton: {
     marginTop: theme.spacing.sm,
+  },
+  alternativeText: {
+    marginTop: theme.spacing.md,
+    textAlign: "center",
+    color: theme.colors.neutral[500],
+  },
+  googleButton: {
+    marginTop: theme.spacing.sm,
+    borderRadius: theme.borderRadius.xl,
+  },
+  syncOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.neutral[50],
+  },
+  syncOptionText: {
+    flex: 1,
+  },
+  syncOptionTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
+    color: theme.colors.neutral[800],
+  },
+  syncOptionDescription: {
+    marginTop: theme.spacing.xs,
+    fontSize: theme.typography.fontSize.xs,
+    lineHeight: 17,
+    color: theme.colors.neutral[600],
   },
 });
