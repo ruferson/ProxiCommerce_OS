@@ -94,7 +94,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
         <MaterialCommunityIcons name="plus" size={30} color="#ffffff" />
       </View>
       <Text style={styles.addLabel} numberOfLines={1}>
-        Nuevo producto
+        Añadir Producto
       </Text>
     </TouchableOpacity>
     <NavigationItem
@@ -181,6 +181,7 @@ const styles = StyleSheet.create({
   addLabel: {
     maxWidth: "100%",
     fontSize: 9,
+    top: -9,
     color: theme.colors.primary[700],
     fontWeight: theme.typography.fontWeight.semibold,
   },

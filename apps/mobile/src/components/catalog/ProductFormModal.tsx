@@ -23,6 +23,7 @@ import { Product } from "@proxi-commerce/types";
 import { Button } from "../ui/Button";
 import { TextInput } from "../ui/TextInput";
 import { BarcodeScannerModal } from "../pos/BarcodeScannerModal";
+import { useKeyboardOffset } from "../../hooks/useKeyboardOffset";
 import { theme } from "../../theme";
 
 export interface ProductFormModalProps {
@@ -54,6 +55,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   initialBarcode,
 }) => {
   // Form input field state
+  const keyboardOffset = useKeyboardOffset();
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("");
@@ -200,12 +202,18 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   return (
     <>
-      <Modal visible={visible} animationType="slide" transparent>
-        <View style={styles.overlay}>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        transparent
+        onRequestClose={onClose}
+      >
+        <View style={[styles.overlay, { paddingBottom: keyboardOffset }]}>
           <View style={styles.modalContent}>
             <ScrollView
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
             >
               {/* Modal Heading */}
               <Text style={styles.modalTitle}>
@@ -352,7 +360,7 @@ const styles = StyleSheet.create({
     maxHeight: "92%",
   },
   scrollContent: {
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: theme.spacing.xxl,
   },
   modalTitle: {
     fontSize: theme.typography.fontSize.xl,

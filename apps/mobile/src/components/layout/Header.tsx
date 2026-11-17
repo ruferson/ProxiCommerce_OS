@@ -1,7 +1,8 @@
 /**
  * @file Header.tsx
- * @description Compact POS app bar with the active store identity, sync status,
- * and account actions.
+ * @description Responsive POS app bar organized into a two-tier layout:
+ * - Top row: Store identity (icon, brand eyebrow, store title, subtitle) and quick action buttons (AI ticket, Drive, Logout)
+ * - Bottom row: Sync & connectivity badge strip with ample breathing room so titles never wrap vertically.
  */
 
 import React from "react";
@@ -17,6 +18,8 @@ export interface HeaderProps {
   subtitle: string;
   /** Opens the manual Google Drive backup and restore modal */
   onBackupPress: () => void;
+  /** Opens the AI purchase receipt scanner modal */
+  onScanReceiptPress?: () => void;
   /** Signs out the current user */
   onSignOutPress: () => void;
   /** Device online status */
@@ -35,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
   title,
   subtitle,
   onBackupPress,
+  onScanReceiptPress,
   onSignOutPress,
   isOnline,
   isCloudSyncEnabled,
@@ -44,32 +48,47 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   return (
     <View style={styles.header}>
+      {/* Tier 1: Store Brand & Identity (Left) + Action Buttons Toolbar (Right) */}
       <View style={styles.topRow}>
-        <View style={styles.storeIcon}>
-          <MaterialCommunityIcons
-            name="storefront-outline"
-            size={22}
-            color={theme.colors.primary[700]}
-          />
-        </View>
-        <View style={styles.titleBlock}>
-          <Text style={styles.eyebrow}>PROXICOMMERCE · TPV</Text>
-          <Text style={styles.title} numberOfLines={1}>
-            {title}
-          </Text>
-          <Text style={styles.subtitle} numberOfLines={1}>
-            {subtitle}
-          </Text>
+        <View style={styles.storeIdentityBlock}>
+          <View style={styles.storeIcon}>
+            <MaterialCommunityIcons
+              name="storefront-outline"
+              size={22}
+              color={theme.colors.primary[700]}
+            />
+          </View>
+          <View style={styles.titleBlock}>
+            <Text style={styles.eyebrow} numberOfLines={1}>
+              PROXICOMMERCE · TPV
+            </Text>
+            <Text style={styles.title} numberOfLines={1}>
+              {title}
+            </Text>
+            <Text style={styles.subtitle} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.accountActions}>
-          <SyncBadge
-            isEnabled={isCloudSyncEnabled}
-            isOnline={isOnline}
-            pendingCount={pendingSyncCount}
-            isSyncing={isSyncing}
-            onSyncPress={onSyncPress}
-          />
+        <View style={styles.actionButtonsRow}>
+          {onScanReceiptPress && (
+            <TouchableOpacity
+              onPress={onScanReceiptPress}
+              style={styles.actionButton}
+              activeOpacity={0.7}
+              accessibilityLabel="Escanear ticket de compra con IA"
+              accessibilityHint="Extrae artículos de un recibo con IA para descontar stock"
+              accessibilityRole="button"
+            >
+              <MaterialCommunityIcons
+                name="receipt-text-arrow-right"
+                size={19}
+                color={theme.colors.primary[600]}
+              />
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             onPress={onBackupPress}
             style={styles.actionButton}
@@ -80,10 +99,11 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <MaterialCommunityIcons
               name="google-drive"
-              size={20}
+              size={19}
               color={theme.colors.neutral[600]}
             />
           </TouchableOpacity>
+
           <TouchableOpacity
             onPress={onSignOutPress}
             style={styles.actionButton}
@@ -93,11 +113,22 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <MaterialCommunityIcons
               name="logout"
-              size={20}
+              size={19}
               color={theme.colors.neutral[600]}
             />
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Tier 2: Connectivity & Sync Status Strip */}
+      <View style={styles.statusRow}>
+        <SyncBadge
+          isEnabled={isCloudSyncEnabled}
+          isOnline={isOnline}
+          pendingCount={pendingSyncCount}
+          isSyncing={isSyncing}
+          onSyncPress={onSyncPress}
+        />
       </View>
     </View>
   );
@@ -107,35 +138,42 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
-    paddingBottom: theme.spacing.md,
+    paddingBottom: theme.spacing.sm + 2,
     backgroundColor: theme.colors.background.card,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.neutral[100],
+    borderBottomColor: theme.colors.neutral[200],
+    gap: 8,
   },
   topRow: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 58,
+    justifyContent: "space-between",
+  },
+  storeIdentityBlock: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    minWidth: 0,
+    marginRight: theme.spacing.sm,
   },
   storeIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: theme.borderRadius.lg,
+    width: 42,
+    height: 42,
+    borderRadius: theme.borderRadius.md,
     backgroundColor: theme.colors.primary[50],
     alignItems: "center",
     justifyContent: "center",
-    marginRight: theme.spacing.sm,
+    marginRight: theme.spacing.xs + 4,
   },
   titleBlock: {
     flex: 1,
-    marginRight: theme.spacing.sm,
+    minWidth: 0,
   },
   eyebrow: {
     fontSize: 9,
     letterSpacing: 0.8,
     fontWeight: theme.typography.fontWeight.bold,
     color: theme.colors.primary[600],
-    marginBottom: 2,
   },
   title: {
     fontSize: theme.typography.fontSize.md,
@@ -145,19 +183,24 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 11,
     color: theme.colors.neutral[500],
-    marginTop: 2,
   },
-  accountActions: {
+  actionButtonsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing.xs,
+    gap: 6,
   },
   actionButton: {
-    width: 42,
-    height: 42,
-    borderRadius: theme.borderRadius.lg,
+    width: 38,
+    height: 38,
+    borderRadius: theme.borderRadius.full,
     backgroundColor: theme.colors.neutral[100],
+    borderWidth: 1,
+    borderColor: theme.colors.neutral[200],
     alignItems: "center",
     justifyContent: "center",
+  },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
 });

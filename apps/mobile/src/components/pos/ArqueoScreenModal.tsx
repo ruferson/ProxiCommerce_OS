@@ -31,6 +31,7 @@ import { useTransactionHistory } from "../../hooks/useTransactionHistory";
 import * as SQLite from "expo-sqlite";
 import { DB_NAME } from "../../db/schema";
 import { enqueueSyncOperation } from "../../db/syncQueue";
+import { useKeyboardOffset } from "../../hooks/useKeyboardOffset";
 
 type MCIconName = React.ComponentProps<typeof MaterialCommunityIcons>["name"];
 
@@ -74,6 +75,7 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
   storeId,
 }) => {
   const { arqueo, loading, refresh } = useTransactionHistory(storeId);
+  const keyboardOffset = useKeyboardOffset();
   const [countedCash, setCountedCash] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
 
@@ -215,266 +217,271 @@ export const ArqueoScreenModal: React.FC<ArqueoScreenModalProps> = ({
             </Text>
           </View>
         ) : (
-          <ScrollView
-            style={styles.scrollContent}
-            contentContainerStyle={styles.scrollContainer}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Hero Net Revenue Card */}
-            <Card style={styles.heroCard}>
-              <View style={styles.heroHeader}>
-                <View style={styles.heroBadge}>
-                  <MaterialCommunityIcons
-                    name="shield-check-outline"
-                    size={16}
-                    color={theme.colors.primary[700]}
-                  />
-                  <Text style={styles.heroBadgeText}>Balance Oficial</Text>
-                </View>
-                <Text style={styles.heroTxCount}>
-                  {arqueo.transactionCount} operaciones
-                </Text>
-              </View>
-
-              <Text style={styles.heroLabel}>Total Neto Facturado</Text>
-              <Text style={styles.heroAmount}>
-                {arqueo.grandTotal.toFixed(2)} €
-              </Text>
-
-              {/* Sub-bar: Gross sales vs Refunds */}
-              <View style={styles.heroMetricsRow}>
-                <View style={styles.heroMetric}>
-                  <Text style={styles.metricLabel}>Ventas Brutas</Text>
-                  <Text style={styles.metricValuePos}>
-                    +{totalSales.toFixed(2)} €
-                  </Text>
-                </View>
-                <View style={styles.metricDivider} />
-                <View style={styles.heroMetric}>
-                  <Text style={styles.metricLabel}>Devoluciones</Text>
-                  <Text style={styles.metricValueNeg}>
-                    -{totalRefunds.toFixed(2)} €
-                  </Text>
-                </View>
-              </View>
-            </Card>
-
-            {/* SECTION 1: Physical Cash Drawer Balancing */}
-            <View style={styles.sectionHeader}>
-              <MaterialCommunityIcons
-                name="cash-register"
-                size={20}
-                color={theme.colors.payment.cash}
-              />
-              <Text style={styles.sectionTitle}>Cuadre de Efectivo Físico</Text>
-            </View>
-
-            <Card style={styles.drawerCard}>
-              <View style={styles.drawerColumn}>
-                <Text style={styles.drawerLabel}>
-                  Efectivo Teórico en Gaveta
-                </Text>
-                <Text style={styles.drawerSub}>
-                  Total de ventas en efectivo menos devoluciones
-                </Text>
-                <View style={styles.expectedCashBadge}>
-                  <MaterialCommunityIcons
-                    name="cash"
-                    size={18}
-                    color={theme.colors.payment.cash}
-                  />
-                  <Text style={styles.expectedCashVal} numberOfLines={1}>
-                    {expectedCash.toFixed(2)} €
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.inputSection}>
-                <Text style={styles.inputTitle}>
-                  Efectivo Real Contado en Gaveta
-                </Text>
-                <View style={styles.inputRow}>
-                  <View style={styles.currencyPrefix}>
-                    <Text style={styles.currencyPrefixText}>€</Text>
+          <View style={[styles.mainBody, { paddingBottom: keyboardOffset }]}>
+            <ScrollView
+              style={styles.scrollContent}
+              contentContainerStyle={[styles.scrollContainer]}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {/* Hero Net Revenue Card */}
+              <Card style={styles.heroCard}>
+                <View style={styles.heroHeader}>
+                  <View style={styles.heroBadge}>
+                    <MaterialCommunityIcons
+                      name="shield-check-outline"
+                      size={16}
+                      color={theme.colors.primary[700]}
+                    />
+                    <Text style={styles.heroBadgeText}>Balance Oficial</Text>
                   </View>
-                  <TextInput
-                    style={styles.cashInput}
-                    placeholder="0.00"
-                    placeholderTextColor={theme.colors.neutral[400]}
-                    keyboardType="decimal-pad"
-                    value={countedCash}
-                    onChangeText={setCountedCash}
-                  />
-                  {hasCountedInput && (
-                    <TouchableOpacity
-                      onPress={() => setCountedCash("")}
-                      style={styles.clearInput}
-                    >
-                      <MaterialCommunityIcons
-                        name="close-circle"
-                        size={18}
-                        color={theme.colors.neutral[400]}
-                      />
-                    </TouchableOpacity>
-                  )}
+                  <Text style={styles.heroTxCount}>
+                    {arqueo.transactionCount} operaciones
+                  </Text>
                 </View>
-              </View>
 
-              {/* Balancing Result */}
-              {hasCountedInput && (
-                <View
-                  style={[
-                    styles.resultBox,
-                    discrepancy === 0
-                      ? styles.resultMatch
-                      : discrepancy > 0
-                        ? styles.resultSurplus
-                        : styles.resultDeficit,
-                  ]}
-                >
-                  <MaterialCommunityIcons
-                    name={
-                      discrepancy === 0
-                        ? "check-decagram"
-                        : discrepancy > 0
-                          ? "arrow-up-bold-circle-outline"
-                          : "alert-octagon"
-                    }
-                    size={24}
-                    color={
-                      discrepancy === 0
-                        ? theme.colors.status.success
-                        : discrepancy > 0
-                          ? theme.colors.primary[600]
-                          : theme.colors.status.error
-                    }
-                  />
-                  <View style={styles.resultTextBlock}>
-                    <Text
-                      style={[
-                        styles.resultTitle,
-                        {
-                          color:
-                            discrepancy === 0
-                              ? theme.colors.status.success
-                              : discrepancy > 0
-                                ? theme.colors.primary[700]
-                                : theme.colors.status.error,
-                        },
-                      ]}
-                    >
-                      {discrepancy === 0
-                        ? "Caja Cuadrada al Céntimo"
-                        : discrepancy > 0
-                          ? "Sobrante de Efectivo (+)"
-                          : "Faltante en Gaveta (-)"}
+                <Text style={styles.heroLabel}>Total Neto Facturado</Text>
+                <Text style={styles.heroAmount}>
+                  {arqueo.grandTotal.toFixed(2)} €
+                </Text>
+
+                {/* Sub-bar: Gross sales vs Refunds */}
+                <View style={styles.heroMetricsRow}>
+                  <View style={styles.heroMetric}>
+                    <Text style={styles.metricLabel}>Ventas Brutas</Text>
+                    <Text style={styles.metricValuePos}>
+                      +{totalSales.toFixed(2)} €
                     </Text>
-                    <Text
-                      style={[
-                        styles.resultAmount,
-                        {
-                          color:
-                            discrepancy === 0
-                              ? theme.colors.status.success
-                              : discrepancy > 0
-                                ? theme.colors.primary[700]
-                                : theme.colors.status.error,
-                        },
-                      ]}
-                    >
-                      {discrepancy >= 0 ? "+" : ""}
-                      {discrepancy.toFixed(2)} €
+                  </View>
+                  <View style={styles.metricDivider} />
+                  <View style={styles.heroMetric}>
+                    <Text style={styles.metricLabel}>Devoluciones</Text>
+                    <Text style={styles.metricValueNeg}>
+                      -{totalRefunds.toFixed(2)} €
                     </Text>
                   </View>
                 </View>
-              )}
-            </Card>
+              </Card>
 
-            {/* SECTION 2: Digital Channels Breakdown */}
-            <View style={styles.sectionHeader}>
-              <MaterialCommunityIcons
-                name="credit-card-outline"
-                size={20}
-                color={theme.colors.payment.nfc}
-              />
-              <Text style={styles.sectionTitle}>
-                Cobros Digitales y Bancarios ({arqueo.totalDigital.toFixed(2)}{" "}
-                €)
-              </Text>
-            </View>
+              {/* SECTION 1: Physical Cash Drawer Balancing */}
+              <View style={styles.sectionHeader}>
+                <MaterialCommunityIcons
+                  name="cash-register"
+                  size={20}
+                  color={theme.colors.payment.cash}
+                />
+                <Text style={styles.sectionTitle}>
+                  Cuadre de Efectivo Físico
+                </Text>
+              </View>
 
-            <View style={styles.digitalGrid}>
-              {arqueo.breakdown
-                .filter((b) => b.type !== "CASH")
-                .map((b) => (
-                  <Card key={b.type} style={styles.digitalCard}>
-                    <View style={styles.digitalCardHeader}>
-                      <View
-                        style={[
-                          styles.digitalIconBadge,
-                          { backgroundColor: PAYMENT_COLOR_LIGHT[b.type] },
-                        ]}
+              <Card style={styles.drawerCard}>
+                <View style={styles.drawerColumn}>
+                  <Text style={styles.drawerLabel}>
+                    Efectivo Teórico en Gaveta
+                  </Text>
+                  <Text style={styles.drawerSub}>
+                    Total de ventas en efectivo menos devoluciones
+                  </Text>
+                  <View style={styles.expectedCashBadge}>
+                    <MaterialCommunityIcons
+                      name="cash"
+                      size={18}
+                      color={theme.colors.payment.cash}
+                    />
+                    <Text style={styles.expectedCashVal} numberOfLines={1}>
+                      {expectedCash.toFixed(2)} €
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.inputSection}>
+                  <Text style={styles.inputTitle}>
+                    Efectivo Real Contado en Gaveta
+                  </Text>
+                  <View style={styles.inputRow}>
+                    <View style={styles.currencyPrefix}>
+                      <Text style={styles.currencyPrefixText}>€</Text>
+                    </View>
+                    <TextInput
+                      style={styles.cashInput}
+                      placeholder="0.00"
+                      placeholderTextColor={theme.colors.neutral[400]}
+                      keyboardType="decimal-pad"
+                      value={countedCash}
+                      onChangeText={setCountedCash}
+                    />
+                    {hasCountedInput && (
+                      <TouchableOpacity
+                        onPress={() => setCountedCash("")}
+                        style={styles.clearInput}
                       >
                         <MaterialCommunityIcons
-                          name={PAYMENT_ICON[b.type]}
+                          name="close-circle"
                           size={18}
-                          color={PAYMENT_COLOR[b.type]}
+                          color={theme.colors.neutral[400]}
                         />
-                      </View>
-                      <Text style={styles.digitalCountBadge}>
-                        {b.count} cobros
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                {/* Balancing Result */}
+                {hasCountedInput && (
+                  <View
+                    style={[
+                      styles.resultBox,
+                      discrepancy === 0
+                        ? styles.resultMatch
+                        : discrepancy > 0
+                          ? styles.resultSurplus
+                          : styles.resultDeficit,
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={
+                        discrepancy === 0
+                          ? "check-decagram"
+                          : discrepancy > 0
+                            ? "arrow-up-bold-circle-outline"
+                            : "alert-octagon"
+                      }
+                      size={24}
+                      color={
+                        discrepancy === 0
+                          ? theme.colors.status.success
+                          : discrepancy > 0
+                            ? theme.colors.primary[600]
+                            : theme.colors.status.error
+                      }
+                    />
+                    <View style={styles.resultTextBlock}>
+                      <Text
+                        style={[
+                          styles.resultTitle,
+                          {
+                            color:
+                              discrepancy === 0
+                                ? theme.colors.status.success
+                                : discrepancy > 0
+                                  ? theme.colors.primary[700]
+                                  : theme.colors.status.error,
+                          },
+                        ]}
+                      >
+                        {discrepancy === 0
+                          ? "Caja Cuadrada al Céntimo"
+                          : discrepancy > 0
+                            ? "Sobrante de Efectivo (+)"
+                            : "Faltante en Gaveta (-)"}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.resultAmount,
+                          {
+                            color:
+                              discrepancy === 0
+                                ? theme.colors.status.success
+                                : discrepancy > 0
+                                  ? theme.colors.primary[700]
+                                  : theme.colors.status.error,
+                          },
+                        ]}
+                      >
+                        {discrepancy >= 0 ? "+" : ""}
+                        {discrepancy.toFixed(2)} €
                       </Text>
                     </View>
-                    <Text style={styles.digitalLabel}>
-                      {PAYMENT_LABEL[b.type]}
-                    </Text>
-                    <Text style={styles.digitalAmount}>
-                      {b.total.toFixed(2)} €
+                  </View>
+                )}
+              </Card>
+
+              {/* SECTION 2: Digital Channels Breakdown */}
+              <View style={styles.sectionHeader}>
+                <MaterialCommunityIcons
+                  name="credit-card-outline"
+                  size={20}
+                  color={theme.colors.payment.nfc}
+                />
+                <Text style={styles.sectionTitle}>
+                  Cobros Digitales y Bancarios ({arqueo.totalDigital.toFixed(2)}{" "}
+                  €)
+                </Text>
+              </View>
+
+              <View style={styles.digitalGrid}>
+                {arqueo.breakdown
+                  .filter((b) => b.type !== "CASH")
+                  .map((b) => (
+                    <Card key={b.type} style={styles.digitalCard}>
+                      <View style={styles.digitalCardHeader}>
+                        <View
+                          style={[
+                            styles.digitalIconBadge,
+                            { backgroundColor: PAYMENT_COLOR_LIGHT[b.type] },
+                          ]}
+                        >
+                          <MaterialCommunityIcons
+                            name={PAYMENT_ICON[b.type]}
+                            size={18}
+                            color={PAYMENT_COLOR[b.type]}
+                          />
+                        </View>
+                        <Text style={styles.digitalCountBadge}>
+                          {b.count} cobros
+                        </Text>
+                      </View>
+                      <Text style={styles.digitalLabel}>
+                        {PAYMENT_LABEL[b.type]}
+                      </Text>
+                      <Text style={styles.digitalAmount}>
+                        {b.total.toFixed(2)} €
+                      </Text>
+                    </Card>
+                  ))}
+
+                {arqueo.totalDigital === 0 && (
+                  <Card style={styles.emptyDigitalCard}>
+                    <Text style={styles.emptyText}>
+                      No hay transacciones electrónicas en este turno.
                     </Text>
                   </Card>
-                ))}
+                )}
+              </View>
 
-              {arqueo.totalDigital === 0 && (
-                <Card style={styles.emptyDigitalCard}>
-                  <Text style={styles.emptyText}>
-                    No hay transacciones electrónicas en este turno.
-                  </Text>
-                </Card>
-              )}
-            </View>
+              {/* SECTION 3: Closure Observations */}
+              <View style={styles.sectionHeader}>
+                <MaterialCommunityIcons
+                  name="notebook-edit-outline"
+                  size={20}
+                  color={theme.colors.neutral[600]}
+                />
+                <Text style={styles.sectionTitle}>Observaciones del Turno</Text>
+              </View>
 
-            {/* SECTION 3: Closure Observations */}
-            <View style={styles.sectionHeader}>
-              <MaterialCommunityIcons
-                name="notebook-edit-outline"
-                size={20}
-                color={theme.colors.neutral[600]}
-              />
-              <Text style={styles.sectionTitle}>Observaciones del Turno</Text>
-            </View>
+              <Card style={styles.notesCard}>
+                <TextInput
+                  style={styles.notesInput}
+                  placeholder="Añadir notas sobre incidencias, propinas o justificantes de gasto..."
+                  placeholderTextColor={theme.colors.neutral[400]}
+                  multiline
+                  numberOfLines={3}
+                  value={notes}
+                  onChangeText={setNotes}
+                />
+              </Card>
 
-            <Card style={styles.notesCard}>
-              <TextInput
-                style={styles.notesInput}
-                placeholder="Añadir notas sobre incidencias, propinas o justificantes de gasto..."
-                placeholderTextColor={theme.colors.neutral[400]}
-                multiline
-                numberOfLines={3}
-                value={notes}
-                onChangeText={setNotes}
-              />
-            </Card>
-
-            {/* Closure Confirmation Button */}
-            <View style={styles.actions}>
-              <Button
-                title="Cerrar y Validar Arqueo Z"
-                variant="primary"
-                onPress={handleFinishDay}
-                style={styles.finishButton}
-              />
-            </View>
-          </ScrollView>
+              {/* Closure Confirmation Button */}
+              <View style={styles.actions}>
+                <Button
+                  title="Cerrar y Validar Arqueo Z"
+                  variant="primary"
+                  onPress={handleFinishDay}
+                  style={styles.finishButton}
+                />
+              </View>
+            </ScrollView>
+          </View>
         )}
       </SafeAreaView>
     </Modal>
@@ -537,12 +544,15 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.md,
     color: theme.colors.neutral[500],
   },
+  mainBody: {
+    flex: 1,
+  },
   scrollContent: {
     flex: 1,
   },
   scrollContainer: {
     padding: theme.spacing.lg,
-    paddingBottom: theme.spacing.xxl * 2,
+    paddingBottom: theme.spacing.xxl,
   },
 
   // Hero Card

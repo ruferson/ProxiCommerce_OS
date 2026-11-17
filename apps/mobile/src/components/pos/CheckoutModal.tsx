@@ -22,6 +22,7 @@ import { TextInput } from "../ui/TextInput";
 import { IconButton } from "../ui/IconButton";
 import { Card } from "../ui/Card";
 import { createTransaction } from "../../services/transactionService";
+import { useKeyboardOffset } from "../../hooks/useKeyboardOffset";
 import { theme } from "../../theme";
 
 /**
@@ -59,6 +60,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   storeId,
   onRemoveItem,
 }) => {
+  const keyboardOffset = useKeyboardOffset();
   // Payment method selection state (defaults to Cash)
   const [paymentType, setPaymentType] = useState<TransactionType>("CASH");
   // Cash tendered input string
@@ -112,10 +114,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
-        <View style={styles.modalContent}>
-          {/* Modal Header */}
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={[styles.overlay, { paddingBottom: keyboardOffset }]}>
+          <View style={styles.modalContent}>
+            {/* Modal Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Resumen del Ticket</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton} activeOpacity={0.7}>
@@ -124,7 +126,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           </View>
 
           {/* Scrollable Cart Line Items List */}
-          <ScrollView style={styles.itemList}>
+          <ScrollView style={styles.itemList} keyboardShouldPersistTaps="handled">
             {cart.map((item) => (
               <Card key={item.product.id} padding="sm" style={styles.itemCard}>
                 <View style={styles.itemDetails}>
@@ -241,9 +243,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             />
           </View>
         </View>
-      </View>
-    </Modal>
-  );
+    </View>
+  </Modal>
+);
 };
 
 // --- Stylesheet ---

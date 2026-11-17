@@ -13,6 +13,7 @@ import {
   Platform,
   Alert,
   Switch,
+  ScrollView,
 } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { supabase } from "../lib/supabase";
@@ -153,7 +154,12 @@ export const AuthScreen: React.FC = () => {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <View style={styles.card}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.card}>
         <Text style={styles.title}>ProxiCommerce OS</Text>
         <Text style={styles.subtitle}>
           {isSignUp
@@ -238,20 +244,24 @@ export const AuthScreen: React.FC = () => {
           style={styles.switchButton}
         />
       </View>
-    </KeyboardAvoidingView>
-  );
+    </ScrollView>
+  </KeyboardAvoidingView>
+);
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background.main,
-    justifyContent: "center",
-    padding: theme.spacing.lg,
-  },
-  card: {
-    backgroundColor: theme.colors.background.card,
-    borderRadius: theme.borderRadius.xxl,
+container: {
+  flex: 1,
+  backgroundColor: theme.colors.background.main,
+},
+scrollContainer: {
+  flexGrow: 1,
+  justifyContent: "center",
+  padding: theme.spacing.lg,
+},
+card: {
+  backgroundColor: theme.colors.background.card,
+  borderRadius: theme.borderRadius.xxl,
     padding: theme.spacing.xl,
     shadowColor: theme.colors.neutral[900],
     shadowOffset: { width: 0, height: 4 },

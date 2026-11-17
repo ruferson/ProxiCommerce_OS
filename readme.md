@@ -31,6 +31,7 @@ All parts of this repository are in development. Expect incomplete workflows, ch
 - Review and harden the Supabase Row Level Security (RLS) policies before connecting real users or data. The current example policies are permissive for development.
 - Do not apply [`supabase/schema.sql`](supabase/schema.sql) to a database containing data without reviewing it first; it includes statements that drop and recreate tables.
 - Authentication email confirmation and other provider settings are configured in Supabase, not by the app.
+- AI receipt analysis is prepared for configurable multimodal providers but intentionally disabled by default. It makes no paid AI requests until you enable it and provide your own provider configuration.
 
 ---
 
@@ -47,7 +48,34 @@ All parts of this repository are in development. Expect incomplete workflows, ch
   - Capture product images locally; image upload requires the matching Supabase Storage bucket.
 - **Optional Supabase synchronization**: New accounts can opt in during registration. When enabled, supported product, transaction, and closure changes are sent to Supabase when online.
 - **Manual Google Drive backups**: Export or restore a store-scoped snapshot on demand; this is not device-to-device synchronization.
+- **AI receipt scanner (development)**: The receipt parsing service supports configurable OpenAI-compatible vision endpoints; analysis is off by default and requires your own provider and API key.
 - **POS interface**: Shared theme tokens and reusable UI components, including a bottom navigation bar.
+
+#### Enabling AI receipt analysis for your own development build
+
+The scanner does not require Gemini. It is prepared to call any multimodal provider
+that supports the OpenAI-compatible `chat/completions` request format, image input,
+Bearer API-key authentication, and JSON-object responses. Configure these values in
+`apps/mobile/.env`:
+
+```dotenv
+EXPO_PUBLIC_AI_API_URL=https://your-provider.example/v1/chat/completions
+EXPO_PUBLIC_AI_MODEL=your-vision-model
+EXPO_PUBLIC_AI_API_KEY=your-api-key
+```
+
+Then set `AI_RECEIPT_ANALYSIS_ENABLED` to `true` in
+[`ReceiptScannerModal.tsx`](apps/mobile/src/components/pos/ReceiptScannerModal.tsx)
+and restart Expo so it reloads the environment. If your chosen provider uses a
+different API format or authentication scheme, adapt
+[`aiReceiptService.ts`](apps/mobile/src/services/aiReceiptService.ts).
+
+**Security:** Expo's `EXPO_PUBLIC_` variables are embedded in the mobile app and
+can be extracted. Use them only for a private local development build with a
+restricted, budget-limited key. For a real/public deployment, implement a
+server-side proxy and keep the provider key on the server; each app operator
+should supply credentials through that protected backend rather than shipping a
+shared secret in the client.
 
 ### 🌐 Next.js Web Storefront (`apps/web`)
 - Early Next.js 15 App Router scaffold; a complete storefront and cloud-connected catalog are not yet implemented.

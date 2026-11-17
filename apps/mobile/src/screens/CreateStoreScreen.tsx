@@ -11,6 +11,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 import { TextInput } from "../components/ui/TextInput";
@@ -72,37 +73,43 @@ export const CreateStoreScreen: React.FC<CreateStoreScreenProps> = ({
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <View style={styles.card}>
-        <Text style={styles.title}>Configura tu Tienda</Text>
-        <Text style={styles.subtitle}>
-          Introduce los datos de tu comercio físico para empezar a vender. La
-          sincronización automática con Supabase depende de la opción elegida al
-          registrarte.
-        </Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.card}>
+          <Text style={styles.title}>Configura tu Tienda</Text>
+          <Text style={styles.subtitle}>
+            Introduce los datos de tu comercio físico para empezar a vender. La
+            sincronización automática con Supabase depende de la opción elegida al
+            registrarte.
+          </Text>
 
-        <TextInput
-          label="Nombre del establecimiento"
-          placeholder="Ej. Panadería El Trigo de Oro"
-          value={storeName}
-          onChangeText={setStoreName}
-        />
+          <TextInput
+            label="Nombre del establecimiento"
+            placeholder="Ej. Panadería El Trigo de Oro"
+            value={storeName}
+            onChangeText={setStoreName}
+          />
 
-        <TextInput
-          label="Identificador web (Slug)"
-          placeholder="ej. trigo-de-oro"
-          autoCapitalize="none"
-          value={storeSlug}
-          onChangeText={setStoreSlug}
-        />
+          <TextInput
+            label="Identificador web (Slug)"
+            placeholder="ej. trigo-de-oro"
+            autoCapitalize="none"
+            value={storeSlug}
+            onChangeText={setStoreSlug}
+          />
 
-        <Button
-          title="Crear mi Tienda"
-          variant="primary"
-          loading={loading}
-          onPress={handleCreateStore}
-          style={styles.button}
-        />
-      </View>
+          <Button
+            title="Crear mi Tienda"
+            variant="primary"
+            loading={loading}
+            onPress={handleCreateStore}
+            style={styles.button}
+          />
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 };
@@ -111,6 +118,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background.main,
+  },
+  scrollContainer: {
+    flexGrow: 1,
     justifyContent: "center",
     padding: theme.spacing.lg,
   },

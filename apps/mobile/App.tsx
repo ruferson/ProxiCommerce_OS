@@ -23,6 +23,7 @@ import { SalesHistoryModal } from "./src/components/pos/SalesHistoryModal";
 import { RefundModal } from "./src/components/pos/RefundModal";
 import { ArqueoScreenModal } from "./src/components/pos/ArqueoScreenModal";
 import { BarcodeScannerModal } from "./src/components/pos/BarcodeScannerModal";
+import { ReceiptScannerModal } from "./src/components/pos/ReceiptScannerModal";
 import { getProductByBarcode } from "./src/services/catalogService";
 import { theme } from "./src/theme";
 import { useSyncEngine } from "./src/hooks/useSyncEngine";
@@ -58,6 +59,7 @@ export default function App() {
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [arqueoModalVisible, setArqueoModalVisible] = useState(false);
   const [barcodeScannerVisible, setBarcodeScannerVisible] = useState(false);
+  const [receiptScannerVisible, setReceiptScannerVisible] = useState(false);
   const [backupModalVisible, setBackupModalVisible] = useState(false);
   const [refundTransactionId, setRefundTransactionId] = useState<string | null>(
     null,
@@ -91,6 +93,7 @@ export default function App() {
     setHistoryModalVisible(false);
     setArqueoModalVisible(false);
     setBarcodeScannerVisible(false);
+    setReceiptScannerVisible(false);
     setBackupModalVisible(false);
     setRefundTransactionId(null);
     initialSync.closeModal();
@@ -236,6 +239,7 @@ export default function App() {
           title={storeName || "Mi tienda"}
           subtitle="Punto de venta"
           onBackupPress={() => setBackupModalVisible(true)}
+          onScanReceiptPress={() => setReceiptScannerVisible(true)}
           onSignOutPress={requestSignOut}
           isOnline={isOnline}
           isCloudSyncEnabled={cloudSyncEnabled}
@@ -401,6 +405,14 @@ export default function App() {
             }
           }}
           onClose={() => setBarcodeScannerVisible(false)}
+        />
+
+        <ReceiptScannerModal
+          visible={receiptScannerVisible}
+          onClose={() => setReceiptScannerVisible(false)}
+          storeId={storeId ?? ""}
+          catalog={products}
+          onSuccess={refreshProducts}
         />
 
         <SyncDecisionModal
