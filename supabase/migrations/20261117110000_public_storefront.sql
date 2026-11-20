@@ -459,3 +459,6 @@ $$;
 
 REVOKE ALL ON FUNCTION public.create_web_order(TEXT, JSONB, TEXT, TEXT, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.create_web_order(TEXT, JSONB, TEXT, TEXT, TEXT) TO anon, authenticated;
+
+-- Tell PostgREST to refresh its schema cache after creating or replacing the RPC.
+NOTIFY pgrst, 'reload schema';

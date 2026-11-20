@@ -32,6 +32,8 @@ export interface HeaderProps {
   isSyncing: boolean;
   /** Manual trigger for queue upload */
   onSyncPress: () => void | Promise<void>;
+  /** Opens Supabase settings when synchronization is disabled */
+  onSyncSettingsPress: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -45,6 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
   pendingSyncCount,
   isSyncing,
   onSyncPress,
+  onSyncSettingsPress,
 }) => {
   return (
     <View style={styles.header}>
@@ -127,7 +130,9 @@ export const Header: React.FC<HeaderProps> = ({
           isOnline={isOnline}
           pendingCount={pendingSyncCount}
           isSyncing={isSyncing}
-          onSyncPress={onSyncPress}
+          onSyncPress={
+            isCloudSyncEnabled ? onSyncPress : onSyncSettingsPress
+          }
         />
       </View>
     </View>

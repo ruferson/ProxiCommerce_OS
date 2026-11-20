@@ -37,14 +37,20 @@ export const SyncBadge: React.FC<SyncBadgeProps> = ({
 }) => {
   if (!isEnabled) {
     return (
-      <View style={[styles.badge, styles.disabledBadge]}>
+      <TouchableOpacity
+        style={[styles.badge, styles.disabledBadge]}
+        onPress={onSyncPress}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Activar sincronización con Supabase"
+      >
         <MaterialCommunityIcons
           name="cloud-off-outline"
           size={14}
           color={theme.colors.neutral[500]}
         />
         <Text style={styles.disabledText}>Supabase desactivado</Text>
-      </View>
+      </TouchableOpacity>
     );
   }
 

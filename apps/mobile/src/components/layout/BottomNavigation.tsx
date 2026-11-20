@@ -104,11 +104,11 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
       color={theme.colors.payment.cash}
     />
     <NavigationItem
-      label={isCloudSyncEnabled ? "Catálogo" : "Nube off"}
+      label={isCloudSyncEnabled ? "Catálogo" : "Activar nube"}
       accessibilityLabel={
         isCloudSyncEnabled
           ? "Conciliar el catálogo con Supabase; no es la copia de Google Drive"
-          : "Sincronización automática con Supabase desactivada"
+          : "Activar sincronización automática con Supabase"
       }
       icon="cloud-sync-outline"
       onPress={onCatalogSyncPress}
@@ -117,7 +117,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           ? theme.colors.primary[600]
           : theme.colors.neutral[400]
       }
-      disabled={!isCloudSyncEnabled || isCatalogSyncing}
+      disabled={isCatalogSyncing}
       loading={isCatalogSyncing}
     />
   </View>

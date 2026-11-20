@@ -12,6 +12,13 @@ export function useKeyboardOffset(): number {
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
 
   useEffect(() => {
+    // Android resizes the window by default. Adding the native keyboard height
+    // again would push bottom sheets and full-screen modals far above the viewport.
+    if (Platform.OS === "android") {
+      setKeyboardHeight(0);
+      return;
+    }
+
     const showEvent =
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
     const hideEvent =

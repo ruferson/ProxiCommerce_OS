@@ -35,6 +35,9 @@ import { useAuth } from "./src/hooks/useAuth";
 import { AuthScreen } from "./src/screens/AuthScreen";
 import { CreateStoreScreen } from "./src/screens/CreateStoreScreen";
 import { Button } from "./src/components/ui/Button";
+import { supabase } from "./src/lib/supabase";
+import { overwriteRemoteWithLocal } from "./src/services/pullSyncService";
+import { SyncSettingsModal } from "./src/components/sync/SyncSettingsModal";
 
 export default function App() {
   const {
@@ -61,6 +64,7 @@ export default function App() {
   const [barcodeScannerVisible, setBarcodeScannerVisible] = useState(false);
   const [receiptScannerVisible, setReceiptScannerVisible] = useState(false);
   const [backupModalVisible, setBackupModalVisible] = useState(false);
+  const [syncSettingsVisible, setSyncSettingsVisible] = useState(false);
   const [refundTransactionId, setRefundTransactionId] = useState<string | null>(
     null,
   );
@@ -84,7 +88,13 @@ export default function App() {
         Alert.alert(
           "Nuevo pedido online recibido",
           `Has recibido ${summary.newWebOrdersCount} nuevo(s) pedido(s) desde el escaparate web. El stock y el historial de ventas se han actualizado automáticamente.`,
-          [{ text: "Ver pedidos", onPress: () => setHistoryModalVisible(true) }, { text: "Cerrar", style: "cancel" }],
+          [
+            {
+              text: "Ver pedidos",
+              onPress: () => setHistoryModalVisible(true),
+            },
+            { text: "Cerrar", style: "cancel" },
+          ],
         );
       }
     },
@@ -113,6 +123,7 @@ export default function App() {
     setBarcodeScannerVisible(false);
     setReceiptScannerVisible(false);
     setBackupModalVisible(false);
+    setSyncSettingsVisible(false);
     setRefundTransactionId(null);
     initialSync.closeModal();
   }, [clearCart, initialSync.closeModal, storeId]);
@@ -139,6 +150,41 @@ export default function App() {
   useEffect(() => {
     setCloudSyncEnabled(cloudSyncEnabled);
   }, [cloudSyncEnabled]);
+
+  const handleEnableCloudSync = useCallback(async () => {
+    if (
+      !process.env.EXPO_PUBLIC_SUPABASE_URL ||
+      !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+    ) {
+      throw new Error(
+        "Faltan las credenciales de Supabase. Configura EXPO_PUBLIC_SUPABASE_URL y EXPO_PUBLIC_SUPABASE_ANON_KEY.",
+      );
+    }
+    if (!storeId) {
+      throw new Error(
+        "No hay una tienda activa. Crea o selecciona una tienda antes de subir el catálogo.",
+      );
+    }
+
+    const { error: metadataError } = await supabase.auth.updateUser({
+      data: { cloud_sync_enabled: true },
+    });
+    if (metadataError) throw metadataError;
+
+    setCloudSyncEnabled(true);
+    await overwriteRemoteWithLocal(storeId);
+    await refreshAuth();
+  }, [refreshAuth, storeId]);
+
+  const handleDisableCloudSync = useCallback(async () => {
+    const { error } = await supabase.auth.updateUser({
+      data: { cloud_sync_enabled: false },
+    });
+    if (error) throw error;
+
+    setCloudSyncEnabled(false);
+    await refreshAuth();
+  }, [refreshAuth]);
 
   useEffect(() => {
     if (isDbReady && storeId && cloudSyncEnabled) {
@@ -264,6 +310,7 @@ export default function App() {
           pendingSyncCount={pendingCount}
           isSyncing={isSyncing}
           onSyncPress={forceSync}
+          onSyncSettingsPress={() => setSyncSettingsVisible(true)}
         />
 
         <FlatList
@@ -310,7 +357,11 @@ export default function App() {
             setProductModalVisible(true);
           }}
           onArqueoPress={() => setArqueoModalVisible(true)}
-          onCatalogSyncPress={initialSync.handlePullToRefresh}
+          onCatalogSyncPress={
+            cloudSyncEnabled
+              ? initialSync.handlePullToRefresh
+              : () => setSyncSettingsVisible(true)
+          }
           isCloudSyncEnabled={cloudSyncEnabled}
           isCatalogSyncing={
             initialSync.isRefreshing || initialSync.isProcessing
@@ -447,6 +498,14 @@ export default function App() {
           storeId={storeId}
           onClose={() => setBackupModalVisible(false)}
           onRestoreComplete={refreshProducts}
+        />
+
+        <SyncSettingsModal
+          visible={syncSettingsVisible}
+          isEnabled={cloudSyncEnabled}
+          onClose={() => setSyncSettingsVisible(false)}
+          onEnable={handleEnableCloudSync}
+          onDisable={handleDisableCloudSync}
         />
       </SafeAreaView>
     </SafeAreaProvider>

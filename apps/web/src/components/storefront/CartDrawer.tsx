@@ -122,7 +122,15 @@ export function CartDrawer({
 
       if (error) {
         console.error("[CartDrawer] create_web_order error:", error);
-        if (error.message?.includes("INSUFFICIENT_STOCK")) {
+        if (
+          error.code === "PGRST202" ||
+          error.message?.includes("create_web_order") ||
+          error.message?.includes("schema cache")
+        ) {
+          setErrorMessage(
+            "El backend todavía no tiene activada la función de pedidos. Aplica la migración 20261117110000_public_storefront.sql en Supabase y recarga el proyecto.",
+          );
+        } else if (error.message?.includes("INSUFFICIENT_STOCK")) {
           setErrorMessage(
             "Lo sentimos, no hay stock suficiente para uno o más productos de tu carrito. Hemos actualizado las existencias disponibles.",
           );
