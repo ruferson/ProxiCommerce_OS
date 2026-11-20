@@ -1,7 +1,18 @@
+/**
+ * @file not-found.tsx
+ * @description Dedicated 404 page for nonexistent or inactive store slugs.
+ * Provides clear user guidance and a direct link back to the main merchant directory.
+ */
+
 import React from "react";
 import Link from "next/link";
 
-export default function NotFoundStore() {
+/**
+ * 404 Not Found fallback view for store routes.
+ *
+ * @returns {React.ReactElement} User-friendly error message.
+ */
+export default function NotFoundStore(): React.ReactElement {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl border border-stone-200 p-10 max-w-md w-full text-center shadow-sm">

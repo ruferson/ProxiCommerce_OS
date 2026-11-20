@@ -1,3 +1,9 @@
+/**
+ * @file layout.tsx
+ * @description Root layout component for the customer web storefront application.
+ * Injects global Tailwind styles, sets HTML lang headers, and initializes the PWA Service Worker.
+ */
+
 import React from "react";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
@@ -19,11 +25,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
+export interface RootLayoutProps {
   children: React.ReactNode;
-}) {
+}
+
+/**
+ * Root application wrapper.
+ *
+ * @param {RootLayoutProps} props - Children components rendered inside the layout.
+ * @returns {React.ReactElement} Root HTML shell.
+ */
+export default function RootLayout({ children }: RootLayoutProps): React.ReactElement {
   return (
     <html lang="es">
       <body className="min-h-screen bg-[#fdfcf9] text-stone-900 antialiased">

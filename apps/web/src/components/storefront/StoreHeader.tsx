@@ -1,22 +1,39 @@
+/**
+ * @file StoreHeader.tsx
+ * @description Fixed sticky navigation bar for the customer storefront.
+ * Displays store brand title, verification badge, link to store directory,
+ * and shopping cart trigger with badge counters and accumulated totals.
+ */
+
 "use client";
 
 import React from "react";
 import Link from "next/link";
 import { PublicStore } from "@proxi-commerce/types";
 
-interface StoreHeaderProps {
+export interface StoreHeaderProps {
+  /** Active public store entity */
   store: PublicStore;
+  /** Total units currently in the cart */
   totalItems: number;
+  /** Accumulated total monetary value in Euros */
   totalAmount: number;
+  /** Callback to trigger cart drawer presentation */
   onOpenCart: () => void;
 }
 
+/**
+ * Storefront header navigation component.
+ *
+ * @param {StoreHeaderProps} props - Component properties.
+ * @returns {React.ReactElement} Sticky top header.
+ */
 export function StoreHeader({
   store,
   totalItems,
   totalAmount,
   onOpenCart,
-}: StoreHeaderProps) {
+}: StoreHeaderProps): React.ReactElement {
   const formattedTotal = new Intl.NumberFormat("es-ES", {
     style: "currency",
     currency: "EUR",
@@ -53,6 +70,7 @@ export function StoreHeader({
         <button
           onClick={onOpenCart}
           className="relative inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-sm transition-all active:scale-95"
+          aria-label="Abrir carrito de compras"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />

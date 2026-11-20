@@ -1,19 +1,36 @@
+/**
+ * @file OrderConfirmation.tsx
+ * @description Customer order confirmation modal dialog.
+ * Displays completed transaction metadata, line item receipt breakdown,
+ * and prominently renders the in-store pickup code (prepared for QR validation in Phase 4)
+ * or shipping address details.
+ */
+
 "use client";
 
 import React from "react";
 import { CreateWebOrderResult } from "@proxi-commerce/types";
 
-interface OrderConfirmationProps {
+export interface OrderConfirmationProps {
+  /** Completed web order result returned by Supabase RPC */
   order: CreateWebOrderResult;
+  /** Display name of the merchant store */
   storeName: string;
+  /** Callback to close modal and return to catalog */
   onClose: () => void;
 }
 
+/**
+ * Order success and receipt confirmation modal.
+ *
+ * @param {OrderConfirmationProps} props - Component properties.
+ * @returns {React.ReactElement} Centered receipt overlay.
+ */
 export function OrderConfirmation({
   order,
   storeName,
   onClose,
-}: OrderConfirmationProps) {
+}: OrderConfirmationProps): React.ReactElement {
   const formattedTotal = new Intl.NumberFormat("es-ES", {
     style: "currency",
     currency: "EUR",

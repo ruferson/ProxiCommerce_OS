@@ -1,12 +1,32 @@
+/**
+ * @file StoreDirectoryClient.tsx
+ * @description Interactive directory component for browsing and filtering local stores.
+ * Provides client-side real-time filtering, responsive store cards, and navigation links.
+ */
+
 "use client";
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { PublicStore } from "@proxi-commerce/types";
 
-export function StoreDirectoryClient({ initialStores }: { initialStores: PublicStore[] }) {
+export interface StoreDirectoryClientProps {
+  /** Initial array of public store records fetched from Supabase */
+  initialStores: PublicStore[];
+}
+
+/**
+ * Public store directory component.
+ *
+ * @param {StoreDirectoryClientProps} props - Component properties.
+ * @returns {React.ReactElement} Rendered store directory.
+ */
+export function StoreDirectoryClient({
+  initialStores,
+}: StoreDirectoryClientProps): React.ReactElement {
   const [search, setSearch] = useState("");
 
+  // Filter stores client-side by name or slug
   const filteredStores = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return initialStores;
@@ -29,7 +49,7 @@ export function StoreDirectoryClient({ initialStores }: { initialStores: PublicS
           Apoya al comercio de tu barrio. Compra online en panaderías, ferreterías, librerías y comercios locales con recogida en tienda o entrega a domicilio.
         </p>
 
-        {/* Search input */}
+        {/* Real-time Search Input */}
         <div className="mt-8 max-w-md mx-auto">
           <div className="relative">
             <input
@@ -59,7 +79,7 @@ export function StoreDirectoryClient({ initialStores }: { initialStores: PublicS
         </div>
       </div>
 
-      {/* Store Grid */}
+      {/* Store Grid or Empty State */}
       {filteredStores.length === 0 ? (
         <div className="bg-white rounded-3xl border border-stone-200 p-12 text-center max-w-md mx-auto shadow-sm">
           <div className="w-16 h-16 rounded-2xl bg-stone-100 flex items-center justify-center mx-auto mb-4 text-2xl">

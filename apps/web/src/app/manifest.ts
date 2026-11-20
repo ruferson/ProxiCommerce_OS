@@ -1,10 +1,21 @@
+/**
+ * @file manifest.ts
+ * @description Dynamic Web App Manifest generator for Next.js App Router.
+ * Configures PWA metadata, standalone display properties, and theme colors.
+ */
+
 import { MetadataRoute } from "next";
 
+/**
+ * Generates the web app manifest route handler (`/manifest.webmanifest`).
+ *
+ * @returns {MetadataRoute.Manifest} Validated Web Manifest specification object.
+ */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "ProxiCommerce Storefront",
     short_name: "ProxiCommerce",
-    description: "Comercio local descentralizado y de proximidad",
+    description: "Decentralized local commerce platform for neighborhood retail",
     start_url: "/",
     display: "standalone",
     background_color: "#fdfcf9",

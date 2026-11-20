@@ -1,3 +1,10 @@
+/**
+ * @file StorefrontClient.tsx
+ * @description Primary client orchestrator component for merchant storefront pages.
+ * Coordinates product catalog state, live Supabase Realtime inventory updates,
+ * store header navigation, filterable catalog grid, cart drawer, and order confirmation modal.
+ */
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -9,20 +16,28 @@ import { CartDrawer } from "./CartDrawer";
 import { OrderConfirmation } from "./OrderConfirmation";
 import { useWebCart } from "./useWebCart";
 
-interface StorefrontClientProps {
+export interface StorefrontClientProps {
+  /** Public store profile */
   store: PublicStore;
+  /** Server-rendered initial product list */
   initialProducts: Product[];
 }
 
+/**
+ * Main customer storefront view component.
+ *
+ * @param {StorefrontClientProps} props - Component properties.
+ * @returns {React.ReactElement} Customer-facing interactive shopping experience.
+ */
 export function StorefrontClient({
   store,
   initialProducts,
-}: StorefrontClientProps) {
+}: StorefrontClientProps): React.ReactElement {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<CreateWebOrderResult | null>(null);
 
-  // Cart hook bound to this store
+  // Cart hook bound specifically to this store identifier
   const {
     items,
     addItem,
@@ -33,7 +48,7 @@ export function StorefrontClient({
     total,
   } = useWebCart(store.id, products);
 
-  // Map of productId -> quantityInCart for fast lookup
+  // Index map of product IDs to quantities in the cart for O(1) grid status lookups
   const cartItemsMap = useMemo(() => {
     const map = new Map<string, number>();
     for (const item of items) {
@@ -42,7 +57,7 @@ export function StorefrontClient({
     return map;
   }, [items]);
 
-  // Realtime subscription for live stock synchronization
+  // Subscribe to Supabase Realtime channel to synchronize live inventory changes
   useEffect(() => {
     const channelName = `web_store_${store.id}`;
     const channel = supabase
@@ -104,6 +119,9 @@ export function StorefrontClient({
     };
   }, [store.id]);
 
+  /**
+   * Handles successful creation of an online web order.
+   */
   const handleOrderSuccess = (result: CreateWebOrderResult) => {
     setIsCartOpen(false);
     setCompletedOrder(result);
@@ -111,7 +129,7 @@ export function StorefrontClient({
 
   return (
     <div className="min-h-screen bg-[#fdfcf9] flex flex-col">
-      {/* Sticky Top Header */}
+      {/* Sticky Top Navigation Header */}
       <StoreHeader
         store={store}
         totalItems={totalItems}
@@ -119,7 +137,7 @@ export function StorefrontClient({
         onOpenCart={() => setIsCartOpen(true)}
       />
 
-      {/* Main Catalog Body */}
+      {/* Main Catalog View */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8">
         <ProductGrid
           products={products}
@@ -129,7 +147,7 @@ export function StorefrontClient({
         />
       </main>
 
-      {/* Footer */}
+      {/* Storefront Footer */}
       <footer className="mt-auto border-t border-stone-200 bg-white py-6 text-center text-xs text-stone-500">
         <p>
           Escaparate público impulsado por{" "}
@@ -137,7 +155,7 @@ export function StorefrontClient({
         </p>
       </footer>
 
-      {/* Cart Drawer */}
+      {/* Slide-over Cart & Checkout Drawer */}
       <CartDrawer
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
@@ -151,7 +169,7 @@ export function StorefrontClient({
         onOrderSuccess={handleOrderSuccess}
       />
 
-      {/* Order Confirmation Modal */}
+      {/* Order Confirmation Modal Overlay */}
       {completedOrder && (
         <OrderConfirmation
           order={completedOrder}

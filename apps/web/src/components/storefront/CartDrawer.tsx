@@ -1,3 +1,11 @@
+/**
+ * @file CartDrawer.tsx
+ * @description Slide-over checkout drawer component.
+ * Allows customers to review items, adjust line quantities, select fulfillment modality
+ * (In-store pickup vs. Home delivery), validate required delivery data, and invoke
+ * the atomic `create_web_order` RPC endpoint on Supabase.
+ */
+
 "use client";
 
 import React, { useState } from "react";
@@ -5,19 +13,35 @@ import { PublicStore, FulfillmentType, CreateWebOrderResult } from "@proxi-comme
 import { WebCartItem } from "./useWebCart";
 import { supabase } from "../../lib/supabase";
 
-interface CartDrawerProps {
+export interface CartDrawerProps {
+  /** Controls drawer slide-over visibility */
   isOpen: boolean;
+  /** Callback to close drawer */
   onClose: () => void;
+  /** Active public store record */
   store: PublicStore;
+  /** List of items in the cart */
   items: WebCartItem[];
+  /** Total monetary amount in Euros */
   total: number;
+  /** Total quantity of items in the cart */
   totalItems: number;
+  /** Callback to increment or decrement quantity */
   onUpdateQuantity: (productId: string, quantity: number) => void;
+  /** Callback to remove a specific item from cart */
   onRemoveItem: (productId: string) => void;
+  /** Callback to clear the entire store cart */
   onClearCart: () => void;
+  /** Callback executed when the server RPC confirms the order */
   onOrderSuccess: (result: CreateWebOrderResult) => void;
 }
 
+/**
+ * Slide-over shopping cart and order placement drawer.
+ *
+ * @param {CartDrawerProps} props - Component properties.
+ * @returns {React.ReactElement | null} Rendered cart drawer overlay or null if closed.
+ */
 export function CartDrawer({
   isOpen,
   onClose,
@@ -29,12 +53,12 @@ export function CartDrawer({
   onRemoveItem,
   onClearCart,
   onOrderSuccess,
-}: CartDrawerProps) {
+}: CartDrawerProps): React.ReactElement | null {
   const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>("PICKUP");
   const [customerName, setCustomerName] = useState("");
   const [customerNote, setCustomerNote] = useState("");
 
-  // Delivery fields
+  // Home delivery input state
   const [streetAddress, setStreetAddress] = useState("");
   const [cityPostal, setCityPostal] = useState("");
   const [phone, setPhone] = useState("");
@@ -49,6 +73,9 @@ export function CartDrawer({
     currency: "EUR",
   }).format(total);
 
+  /**
+   * Validates form inputs and executes the atomic create_web_order RPC call.
+   */
   const handleSubmitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -62,7 +89,9 @@ export function CartDrawer({
 
     if (fulfillmentType === "DELIVERY") {
       if (!streetAddress.trim() || !cityPostal.trim() || !phone.trim()) {
-        setErrorMessage("Por favor, completa la dirección, código postal/ciudad y teléfono para el envío.");
+        setErrorMessage(
+          "Por favor, completa la dirección, código postal/ciudad y teléfono para el envío.",
+        );
         return;
       }
       compiledDeliveryAddress = `Destinatario: ${customerName.trim() || "Cliente"}\nDirección: ${streetAddress.trim()}\nLocalidad/CP: ${cityPostal.trim()}\nTeléfono: ${phone.trim()}`;
@@ -133,6 +162,7 @@ export function CartDrawer({
           <button
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-stone-200 hover:bg-stone-300 text-stone-600 flex items-center justify-center font-bold text-sm transition-colors"
+            aria-label="Cerrar carrito"
           >
             ✕
           </button>
@@ -171,6 +201,7 @@ export function CartDrawer({
                     <button
                       onClick={() => onUpdateQuantity(product.id, quantity - 1)}
                       className="w-6 h-6 rounded-md bg-white border border-stone-300 hover:bg-stone-100 text-xs font-bold text-stone-700 flex items-center justify-center"
+                      aria-label="Disminuir unidad"
                     >
                       −
                     </button>
@@ -181,6 +212,7 @@ export function CartDrawer({
                       onClick={() => onUpdateQuantity(product.id, quantity + 1)}
                       disabled={quantity >= product.stock_count}
                       className="w-6 h-6 rounded-md bg-white border border-stone-300 hover:bg-stone-100 text-xs font-bold text-stone-700 flex items-center justify-center disabled:opacity-40"
+                      aria-label="Aumentar unidad"
                     >
                       +
                     </button>
@@ -188,6 +220,7 @@ export function CartDrawer({
                       onClick={() => onRemoveItem(product.id)}
                       className="ml-1 text-stone-400 hover:text-rose-500 p-1 text-xs"
                       title="Eliminar artículo"
+                      aria-label="Eliminar producto"
                     >
                       🗑
                     </button>
@@ -197,7 +230,7 @@ export function CartDrawer({
             </div>
           )}
 
-          {/* Fulfillment Form (Only if items exist) */}
+          {/* Fulfillment Form (Rendered only when items exist) */}
           {items.length > 0 && (
             <form id="checkout-form" onSubmit={handleSubmitOrder} className="pt-4 border-t border-stone-200 space-y-4">
               <div className="space-y-1.5">
@@ -235,7 +268,7 @@ export function CartDrawer({
                 </div>
               </div>
 
-              {/* Common field: Customer Name */}
+              {/* Customer Contact Name */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-stone-700 block">
                   Tu nombre y apellidos
@@ -249,7 +282,7 @@ export function CartDrawer({
                 />
               </div>
 
-              {/* Delivery specific fields */}
+              {/* Home Delivery Specific Fields */}
               {fulfillmentType === "DELIVERY" && (
                 <div className="space-y-2.5 p-3.5 bg-amber-50/60 rounded-2xl border border-amber-200">
                   <span className="text-xs font-bold text-amber-900 block">
@@ -286,7 +319,7 @@ export function CartDrawer({
                 </div>
               )}
 
-              {/* Optional note */}
+              {/* Order Notes */}
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-stone-700 block">
                   Notas o comentarios para el comercio (opcional)
@@ -309,7 +342,7 @@ export function CartDrawer({
           )}
         </div>
 
-        {/* Footer with Checkout Action */}
+        {/* Footer with Checkout Submission Action */}
         {items.length > 0 && (
           <div className="p-5 border-t border-stone-200 bg-stone-50 space-y-3">
             <div className="flex justify-between items-center text-sm font-bold text-stone-900">

@@ -1,6 +1,17 @@
+/**
+ * @file loading.tsx
+ * @description Next.js streaming loading skeleton for individual store pages.
+ * Displays animated placeholder skeletons while store metadata and initial products are fetched.
+ */
+
 import React from "react";
 
-export default function LoadingStore() {
+/**
+ * Loading skeleton component for `/store/[store_slug]`.
+ *
+ * @returns {React.ReactElement} Animated placeholder grid.
+ */
+export default function LoadingStore(): React.ReactElement {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 animate-pulse">
       {/* Header Skeleton */}

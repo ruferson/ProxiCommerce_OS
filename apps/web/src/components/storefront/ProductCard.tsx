@@ -1,23 +1,41 @@
+/**
+ * @file ProductCard.tsx
+ * @description Catalog item card presentation component for the web storefront.
+ * Handles remote image loading with graceful local fallback, EUR price formatting,
+ * live stock indicators (Available, Low Stock, Sold Out), and stepper quantity controls.
+ */
+
 "use client";
 
 import React, { useState } from "react";
 import { Product } from "@proxi-commerce/types";
 
-interface ProductCardProps {
+export interface ProductCardProps {
+  /** Catalog product entity */
   product: Product;
+  /** Units of this product currently held in the user's cart */
   quantityInCart: number;
+  /** Callback to add product to the cart */
   onAddToCart: (product: Product) => void;
+  /** Callback to increment/decrement cart quantity */
   onUpdateQuantity: (productId: string, quantity: number) => void;
 }
 
+/**
+ * Storefront product card.
+ *
+ * @param {ProductCardProps} props - Component properties.
+ * @returns {React.ReactElement} Interactive product card.
+ */
 export function ProductCard({
   product,
   quantityInCart,
   onAddToCart,
   onUpdateQuantity,
-}: ProductCardProps) {
+}: ProductCardProps): React.ReactElement {
   const [imgError, setImgError] = useState(false);
 
+  // Determine if image URI is a valid remote URL and has not failed loading
   const isRemoteImage =
     Boolean(product.image_uri) &&
     (product.image_uri.startsWith("http://") || product.image_uri.startsWith("https://")) &&
@@ -32,7 +50,13 @@ export function ProductCard({
   }).format(product.price);
 
   return (
-    <div className={`flex flex-col bg-white rounded-3xl border ${isOutOfStock ? "border-stone-200 opacity-75" : "border-stone-200 hover:border-indigo-300"} p-4 shadow-sm transition-all duration-200`}>
+    <div
+      className={`flex flex-col bg-white rounded-3xl border ${
+        isOutOfStock
+          ? "border-stone-200 opacity-75"
+          : "border-stone-200 hover:border-indigo-300"
+      } p-4 shadow-sm transition-all duration-200`}
+    >
       {/* Product Image Box */}
       <div className="relative w-full h-48 rounded-2xl bg-stone-100 overflow-hidden mb-3.5 flex items-center justify-center">
         {isRemoteImage ? (

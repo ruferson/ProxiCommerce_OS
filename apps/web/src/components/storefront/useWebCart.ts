@@ -1,19 +1,57 @@
+/**
+ * @file useWebCart.ts
+ * @description React hook for managing the shopping cart state in the customer web storefront.
+ * Persists cart contents per store in `localStorage`, auto-reconciles item quantities
+ * when live product stock levels change, and provides arithmetic total calculations.
+ */
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Product } from "@proxi-commerce/types";
 
 export interface WebCartItem {
+  /** Catalog product snapshot */
   product: Product;
+  /** Chosen purchase quantity */
   quantity: number;
 }
 
-export function useWebCart(storeId: string, currentProducts: Product[]) {
+export interface UseWebCartReturn {
+  /** Array of active cart line items */
+  items: WebCartItem[];
+  /** Adds a product to the cart or increments existing line quantity */
+  addItem: (product: Product, quantity?: number) => void;
+  /** Sets an explicit quantity for a given product ID (removes item if quantity <= 0) */
+  updateQuantity: (productId: string, quantity: number) => void;
+  /** Removes a line item completely from the cart */
+  removeItem: (productId: string) => void;
+  /** Clears all items from the current store cart */
+  clearCart: () => void;
+  /** Total sum of units currently in the cart */
+  totalItems: number;
+  /** Total monetary cost in Euros across all cart items */
+  total: number;
+  /** True once localStorage synchronization has completed on client mount */
+  isLoaded: boolean;
+}
+
+/**
+ * Custom hook for store-scoped cart operations.
+ *
+ * @param {string} storeId - Identifier of the active merchant store.
+ * @param {Product[]} currentProducts - Live product catalog for real-time stock reconciliation.
+ * @returns {UseWebCartReturn} Reactive cart state and modification actions.
+ */
+export function useWebCart(
+  storeId: string,
+  currentProducts: Product[],
+): UseWebCartReturn {
   const storageKey = `proxicommerce_cart_${storeId}`;
   const [items, setItems] = useState<WebCartItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load cart from localStorage on mount
+  // Load persisted cart from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem(storageKey);
@@ -24,23 +62,23 @@ export function useWebCart(storeId: string, currentProducts: Product[]) {
         }
       }
     } catch (e) {
-      console.warn("[useWebCart] Failed to load cart from localStorage", e);
+      console.warn("[useWebCart] Failed to load cart from localStorage:", e);
     } finally {
       setIsLoaded(true);
     }
   }, [storageKey]);
 
-  // Persist cart to localStorage on changes
+  // Persist cart to localStorage whenever items change
   useEffect(() => {
     if (!isLoaded) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(items));
     } catch (e) {
-      console.warn("[useWebCart] Failed to save cart to localStorage", e);
+      console.warn("[useWebCart] Failed to save cart to localStorage:", e);
     }
   }, [items, isLoaded, storageKey]);
 
-  // Reconcile items when live stock changes
+  // Reconcile items when remote stock changes
   useEffect(() => {
     if (!isLoaded || currentProducts.length === 0) return;
 

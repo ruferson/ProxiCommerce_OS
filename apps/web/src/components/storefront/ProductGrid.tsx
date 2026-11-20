@@ -1,32 +1,49 @@
+/**
+ * @file ProductGrid.tsx
+ * @description Catalog display grid with instant client-side search, stock availability toggles,
+ * and pricing/alphabetical sorting options.
+ */
+
 "use client";
 
 import React, { useState, useMemo } from "react";
 import { Product } from "@proxi-commerce/types";
 import { ProductCard } from "./ProductCard";
 
-interface ProductGridProps {
+export interface ProductGridProps {
+  /** Full list of store products */
   products: Product[];
+  /** Map of product IDs to their current cart quantity */
   cartItemsMap: Map<string, number>;
+  /** Callback to add item to cart */
   onAddToCart: (product: Product) => void;
+  /** Callback to update item quantity in cart */
   onUpdateQuantity: (productId: string, quantity: number) => void;
 }
 
-type SortOption = "TITLE_ASC" | "PRICE_ASC" | "PRICE_DESC";
+export type SortOption = "TITLE_ASC" | "PRICE_ASC" | "PRICE_DESC";
 
+/**
+ * Filterable and sortable catalog grid.
+ *
+ * @param {ProductGridProps} props - Component properties.
+ * @returns {React.ReactElement} Catalog toolbar and responsive product cards.
+ */
 export function ProductGrid({
   products,
   cartItemsMap,
   onAddToCart,
   onUpdateQuantity,
-}: ProductGridProps) {
+}: ProductGridProps): React.ReactElement {
   const [search, setSearch] = useState("");
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>("TITLE_ASC");
 
+  // Apply search query, in-stock filter, and ordering in memory
   const filteredAndSortedProducts = useMemo(() => {
     let result = products;
 
-    // 1. Text filter (title and barcode)
+    // 1. Text filter (matches product title and EAN barcode)
     const q = search.trim().toLowerCase();
     if (q) {
       result = result.filter(
@@ -36,7 +53,7 @@ export function ProductGrid({
       );
     }
 
-    // 2. In-stock filter
+    // 2. Stock filter
     if (onlyInStock) {
       result = result.filter((p) => p.stock_count > 0);
     }
@@ -74,6 +91,7 @@ export function ProductGrid({
             <button
               onClick={() => setSearch("")}
               className="absolute right-3.5 top-3 text-xs text-stone-400 hover:text-stone-600"
+              aria-label="Limpiar búsqueda"
             >
               ✕
             </button>
