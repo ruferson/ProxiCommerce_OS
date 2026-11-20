@@ -126,7 +126,10 @@ export function useTransactionHistory(
         timestamp: string;
         items: string;
         refund_for_id?: string | null;
-      }>(`SELECT id, store_id, type, total, timestamp, items, refund_for_id
+        fulfillment_type?: any;
+        delivery_address?: string | null;
+        pickup_code?: string | null;
+      }>(`SELECT id, store_id, type, total, timestamp, items, refund_for_id, fulfillment_type, delivery_address, pickup_code
           FROM transactions
           WHERE store_id = ?
           ORDER BY timestamp DESC;`,
@@ -140,6 +143,9 @@ export function useTransactionHistory(
         total: row.total,
         timestamp: row.timestamp,
         refund_for_id: row.refund_for_id,
+        fulfillment_type: row.fulfillment_type || null,
+        delivery_address: row.delivery_address || null,
+        pickup_code: row.pickup_code || null,
         items: (() => {
           try {
             return JSON.parse(row.items) as TransactionItem[];

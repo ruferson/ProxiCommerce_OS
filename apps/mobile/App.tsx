@@ -65,10 +65,6 @@ export default function App() {
     null,
   );
 
-  const { isOnline, pendingCount, isSyncing, forceSync } = useSyncEngine(
-    isDbReady && Boolean(storeId) && cloudSyncEnabled,
-  );
-
   const {
     products,
     loading,
@@ -78,6 +74,28 @@ export default function App() {
     deleteProduct,
     refreshProducts,
   } = useCatalog(storeId, isDbReady && Boolean(storeId));
+
+  const handleInboundData = useCallback(
+    (summary: { newWebOrdersCount: number; updatedStockCount: number }) => {
+      if (summary.newWebOrdersCount > 0 || summary.updatedStockCount > 0) {
+        void refreshProducts();
+      }
+      if (summary.newWebOrdersCount > 0) {
+        Alert.alert(
+          "Nuevo pedido online recibido",
+          `Has recibido ${summary.newWebOrdersCount} nuevo(s) pedido(s) desde el escaparate web. El stock y el historial de ventas se han actualizado automáticamente.`,
+          [{ text: "Ver pedidos", onPress: () => setHistoryModalVisible(true) }, { text: "Cerrar", style: "cancel" }],
+        );
+      }
+    },
+    [refreshProducts],
+  );
+
+  const { isOnline, pendingCount, isSyncing, forceSync } = useSyncEngine(
+    isDbReady && Boolean(storeId) && cloudSyncEnabled,
+    storeId,
+    handleInboundData,
+  );
   const initialSync = useInitialSync(
     storeId ?? "",
     refreshProducts,

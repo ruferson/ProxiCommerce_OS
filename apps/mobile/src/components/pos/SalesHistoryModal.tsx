@@ -156,6 +156,22 @@ const TransactionRow: React.FC<{
         )}
       </View>
 
+      {/* Online Web Order Fulfillment Details */}
+      {tx.type === "ONLINE_WEB" && (tx.fulfillment_type || tx.pickup_code || tx.delivery_address) && (
+        <View style={styles.fulfillmentBadge}>
+          <MaterialCommunityIcons
+            name={tx.fulfillment_type === "PICKUP" ? "storefront-outline" : "truck-delivery-outline"}
+            size={14}
+            color={theme.colors.primary[700]}
+          />
+          <Text style={styles.fulfillmentText} numberOfLines={2}>
+            {tx.fulfillment_type === "PICKUP"
+              ? `Recogida en tienda · Código: ${tx.pickup_code || "---"}`
+              : `Envío a domicilio · ${tx.delivery_address || "Sin dirección"}`}
+          </Text>
+        </View>
+      )}
+
       {/* Item snapshot */}
       {items.length > 0 && (
         <View style={styles.txItems}>
@@ -619,6 +635,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: theme.spacing.xs,
     marginBottom: 4,
+  },
+  fulfillmentBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: theme.colors.primary[50],
+    borderWidth: 1,
+    borderColor: theme.colors.primary[200],
+    borderRadius: theme.borderRadius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  fulfillmentText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.primary[700],
+    fontWeight: theme.typography.fontWeight.medium,
+    flex: 1,
   },
   txIdChip: {
     backgroundColor: theme.colors.neutral[200],

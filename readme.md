@@ -28,7 +28,7 @@ All parts of this repository are in development. Expect incomplete workflows, ch
 
 - The web storefront is currently a scaffold, not a complete customer shopping experience.
 - Supabase synchronization and storage require a configured project and matching schema.
-- Review and harden the Supabase Row Level Security (RLS) policies before connecting real users or data. The current example policies are permissive for development.
+- The base Supabase schema contains permissive development policies. Apply the storefront migration below to replace them with store-owner policies before connecting real users or data.
 - Do not apply [`supabase/schema.sql`](supabase/schema.sql) to a database containing data without reviewing it first; it includes statements that drop and recreate tables.
 - Authentication email confirmation and other provider settings are configured in Supabase, not by the app.
 - AI receipt analysis is prepared for configurable multimodal providers but intentionally disabled by default. It makes no paid AI requests until you enable it and provide your own provider configuration.
@@ -173,7 +173,14 @@ cp apps/mobile/.env.example apps/mobile/.env
 Set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in `apps/mobile/.env`.
 Without these values, cloud authentication and synchronization are unavailable; local
 development can still start. Configure the database and Storage bucket separately, and
-review the development RLS policies before using any real data.
+apply [`supabase/migrations/20261117110000_public_storefront.sql`](supabase/migrations/20261117110000_public_storefront.sql)
+after the base schema to enable the public storefront and atomic web-order RPC. The base
+[`supabase/schema.sql`](supabase/schema.sql) drops and recreates tables, so use it only
+when initializing an empty project after reviewing it. The migration replaces all RLS
+policies on the five application tables; merge any custom policies before applying it
+to a project that has policies not defined in this repository. Public store-directory
+clients should query the `public_stores` view, which omits private owner and payment
+metadata.
 
 ### 3. Optional Supabase sync and manual Google Drive backups
 

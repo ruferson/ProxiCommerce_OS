@@ -1,8 +1,22 @@
 import React from "react";
+import type { Metadata, Viewport } from "next";
+import "./globals.css";
+import { ServiceWorkerRegistrar } from "../components/ServiceWorkerRegistrar";
 
-export const metadata = {
+export const viewport: Viewport = {
+  themeColor: "#4f46e5",
+  width: "device-width",
+  initialScale: 1,
+};
+
+export const metadata: Metadata = {
   title: "ProxiCommerce Storefront",
-  description: "Tienda local descentralizada",
+  description: "Plataforma de comercio de proximidad para el pequeño comercio local",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/icon-192.png",
+  },
 };
 
 export default function RootLayout({
@@ -12,7 +26,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body style={{ fontFamily: "system-ui, sans-serif", margin: 0 }}>
+      <body className="min-h-screen bg-[#fdfcf9] text-stone-900 antialiased">
+        <ServiceWorkerRegistrar />
         {children}
       </body>
     </html>

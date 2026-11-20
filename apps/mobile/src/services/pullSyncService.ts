@@ -30,6 +30,14 @@ export async function overwriteLocalWithRemote(
   const db = await SQLite.openDatabaseAsync(DB_NAME);
 
   await db.withTransactionAsync(async () => {
+    // 0. Clean pending product operations in sync_queue for this store to avoid pushing stale mutations
+    await db.runAsync(
+      `DELETE FROM sync_queue
+       WHERE entity_type = 'product'
+         AND entity_id IN (SELECT id FROM products WHERE store_id = ?);`,
+      [storeId],
+    );
+
     // 1. Clear local products for this store
     await db.runAsync(`DELETE FROM products WHERE store_id = ?;`, [storeId]);
 

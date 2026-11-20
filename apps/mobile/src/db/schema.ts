@@ -51,7 +51,8 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- Transactions table: records offline/online sales, payment types, total sums, and item snapshots.
+    -- Transactions table: records offline/online sales, payment types, total sums, item snapshots,
+    -- and fulfillment details for web orders (fulfillment_type, delivery_address, pickup_code).
     -- refund_for_id links a refund record back to the original transaction (NULL for normal sales).
     -- Refund records carry a negative total and trigger stock restoration in the same atomic write.
     CREATE TABLE IF NOT EXISTS transactions (
@@ -61,7 +62,10 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       total REAL NOT NULL,
       timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
       items TEXT NOT NULL,
-      refund_for_id TEXT REFERENCES transactions(id)
+      refund_for_id TEXT REFERENCES transactions(id),
+      fulfillment_type TEXT,
+      delivery_address TEXT,
+      pickup_code TEXT
     );
 
     -- Closures table: registers daily Z/X cash register balancing, counts, and discrepancies
@@ -115,6 +119,27 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
     await db.execAsync(
       "ALTER TABLE transactions ADD COLUMN refund_for_id TEXT REFERENCES transactions(id);",
     );
+  }
+  if (!transactionColumns.some((column) => column.name === "fulfillment_type")) {
+    try {
+      await db.execAsync("ALTER TABLE transactions ADD COLUMN fulfillment_type TEXT;");
+    } catch {
+      // Ignored if column already exists
+    }
+  }
+  if (!transactionColumns.some((column) => column.name === "delivery_address")) {
+    try {
+      await db.execAsync("ALTER TABLE transactions ADD COLUMN delivery_address TEXT;");
+    } catch {
+      // Ignored if column already exists
+    }
+  }
+  if (!transactionColumns.some((column) => column.name === "pickup_code")) {
+    try {
+      await db.execAsync("ALTER TABLE transactions ADD COLUMN pickup_code TEXT;");
+    } catch {
+      // Ignored if column already exists
+    }
   }
 
   return db;
