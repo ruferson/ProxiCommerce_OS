@@ -75,7 +75,10 @@ export async function pullInboundChanges(
     let txQuery = supabase
       .from("transactions")
       .select(
-        `id, store_id, type, total, timestamp, refund_for_id, fulfillment_type, delivery_address, pickup_code, transaction_items(product_id, title, quantity, unit_price)`,
+        `id, store_id, type, total, timestamp, refund_for_id, fulfillment_type, delivery_address, pickup_code,
+         payment_provider, payment_status, payment_intent_id, checkout_session_id, amount_total, currency,
+         paid_at, refund_status, pickup_validated_at, fulfillment_status, cancelled_at,
+         transaction_items(product_id, title, quantity, unit_price)`,
       )
       .eq("store_id", storeId)
       .eq("type", "ONLINE_WEB");
@@ -123,8 +126,14 @@ export async function pullInboundChanges(
 
           // Insert into local transactions WITHOUT enqueueing to sync_queue
           await db.runAsync(
-            `INSERT INTO transactions (id, store_id, type, total, timestamp, items, refund_for_id, fulfillment_type, delivery_address, pickup_code)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+            `INSERT INTO transactions (
+               id, store_id, type, total, timestamp, items, refund_for_id,
+               fulfillment_type, delivery_address, pickup_code,
+               payment_provider, payment_status, payment_intent_id, checkout_session_id,
+               amount_total, currency, paid_at, refund_status, pickup_validated_at,
+               fulfillment_status, cancelled_at
+             )
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
             [
               remoteTx.id,
               remoteTx.store_id,
@@ -136,6 +145,17 @@ export async function pullInboundChanges(
               remoteTx.fulfillment_type || null,
               remoteTx.delivery_address || null,
               remoteTx.pickup_code || null,
+              remoteTx.payment_provider || "NONE",
+              remoteTx.payment_status || "NOT_REQUIRED",
+              remoteTx.payment_intent_id || null,
+              remoteTx.checkout_session_id || null,
+              remoteTx.amount_total ?? remoteTx.total,
+              remoteTx.currency || "eur",
+              remoteTx.paid_at ? toSQLiteTimestamp(remoteTx.paid_at) : null,
+              remoteTx.refund_status || "NONE",
+              remoteTx.pickup_validated_at ? toSQLiteTimestamp(remoteTx.pickup_validated_at) : null,
+              remoteTx.fulfillment_status || null,
+              remoteTx.cancelled_at ? toSQLiteTimestamp(remoteTx.cancelled_at) : null,
             ],
           );
 

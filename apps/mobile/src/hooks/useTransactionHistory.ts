@@ -129,7 +129,25 @@ export function useTransactionHistory(
         fulfillment_type?: any;
         delivery_address?: string | null;
         pickup_code?: string | null;
+        payment_provider?: string | null;
+        payment_status?: string | null;
+        payment_intent_id?: string | null;
+        checkout_session_id?: string | null;
+        amount_total?: number | null;
+        currency?: string | null;
+        paid_at?: string | null;
+        refund_status?: string | null;
+        pickup_token_hash?: string | null;
+        pickup_token_expires_at?: string | null;
+        pickup_validated_at?: string | null;
+        pickup_validated_by?: string | null;
+        fulfillment_status?: string | null;
+        cancelled_at?: string | null;
       }>(`SELECT id, store_id, type, total, timestamp, items, refund_for_id, fulfillment_type, delivery_address, pickup_code
+          , payment_provider, payment_status, payment_intent_id, checkout_session_id
+          , amount_total, currency, paid_at, refund_status, pickup_token_hash
+          , pickup_token_expires_at, pickup_validated_at, pickup_validated_by
+          , fulfillment_status, cancelled_at
           FROM transactions
           WHERE store_id = ?
           ORDER BY timestamp DESC;`,
@@ -146,6 +164,20 @@ export function useTransactionHistory(
         fulfillment_type: row.fulfillment_type || null,
         delivery_address: row.delivery_address || null,
         pickup_code: row.pickup_code || null,
+        payment_provider: (row.payment_provider as Transaction["payment_provider"]) || "NONE",
+        payment_status: (row.payment_status as Transaction["payment_status"]) || "NOT_REQUIRED",
+        payment_intent_id: row.payment_intent_id || null,
+        checkout_session_id: row.checkout_session_id || null,
+        amount_total: row.amount_total ?? row.total,
+        currency: row.currency || "eur",
+        paid_at: row.paid_at || null,
+        refund_status: (row.refund_status as Transaction["refund_status"]) || "NONE",
+        pickup_token_hash: row.pickup_token_hash || null,
+        pickup_token_expires_at: row.pickup_token_expires_at || null,
+        pickup_validated_at: row.pickup_validated_at || null,
+        pickup_validated_by: row.pickup_validated_by || null,
+        fulfillment_status: (row.fulfillment_status as Transaction["fulfillment_status"]) || null,
+        cancelled_at: row.cancelled_at || null,
         items: (() => {
           try {
             return JSON.parse(row.items) as TransactionItem[];

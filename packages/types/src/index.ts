@@ -4,6 +4,51 @@
 export type TransactionType = "NFC" | "AI_SCAN" | "ONLINE_WEB" | "CASH";
 
 /**
+ * Provider used to process a transaction payment.
+ */
+export type PaymentProvider = "NONE" | "STRIPE";
+
+/**
+ * Server-confirmed payment state for a transaction.
+ */
+export type PaymentStatus =
+  | "NOT_REQUIRED"
+  | "PENDING"
+  | "PAID"
+  | "FAILED"
+  | "CANCELLED"
+  | "PARTIALLY_REFUNDED"
+  | "REFUNDED";
+
+/**
+ * Physical or online fulfillment state for an order.
+ */
+export type FulfillmentStatus =
+  | "PENDING"
+  | "PREPARING"
+  | "READY_FOR_PICKUP"
+  | "OUT_FOR_DELIVERY"
+  | "COMPLETED"
+  | "CANCELLED";
+
+/**
+ * Stripe refund state for a transaction.
+ */
+export type RefundStatus = "NONE" | "PENDING" | "PARTIAL" | "FULL" | "FAILED";
+
+/**
+ * Stripe Connect onboarding state derived from the connected account.
+ */
+export interface StripeConnectStatus {
+  account_id?: string;
+  onboarding_status?: string;
+  charges_enabled: boolean;
+  payouts_enabled: boolean;
+  details_submitted: boolean;
+  default_currency: string;
+}
+
+/**
  * Supported fulfillment modalities for online storefront orders.
  */
 export type FulfillmentType = "PICKUP" | "DELIVERY";
@@ -17,6 +62,11 @@ export interface Store {
   slug: string;
   name: string;
   stripe_account_id?: string;
+  stripe_onboarding_status?: string;
+  stripe_charges_enabled?: boolean;
+  stripe_payouts_enabled?: boolean;
+  stripe_details_submitted?: boolean;
+  stripe_default_currency?: string;
   created_at?: string;
 }
 
@@ -65,6 +115,10 @@ export interface CreateWebOrderResult {
   fulfillment_type: FulfillmentType;
   pickup_code?: string | null;
   delivery_address?: string | null;
+  payment_status?: PaymentStatus;
+  fulfillment_status?: FulfillmentStatus;
+  checkout_session_id?: string | null;
+  payment_intent_id?: string | null;
   items: Array<{
     product_id: string;
     title: string;
@@ -132,4 +186,34 @@ export interface Transaction {
   delivery_address?: string | null;
   /** Verification code for in-store pickup if fulfillment_type === 'PICKUP' */
   pickup_code?: string | null;
+  /** Provider used to process the payment, or NONE for local POS payments. */
+  payment_provider?: PaymentProvider;
+  /** Server-confirmed payment state. */
+  payment_status?: PaymentStatus;
+  /** Stripe PaymentIntent identifier. */
+  payment_intent_id?: string | null;
+  /** Stripe Checkout Session identifier. */
+  checkout_session_id?: string | null;
+  /** Optional Stripe customer identifier. */
+  stripe_customer_id?: string | null;
+  /** Provider amount in the configured transaction currency. */
+  amount_total?: number | null;
+  /** ISO 4217 currency code. */
+  currency?: string;
+  /** ISO timestamp for provider-confirmed payment. */
+  paid_at?: string | null;
+  /** Current provider refund state. */
+  refund_status?: RefundStatus;
+  /** Server-only hash of a signed pickup token. */
+  pickup_token_hash?: string | null;
+  /** Expiration timestamp for pickup validation. */
+  pickup_token_expires_at?: string | null;
+  /** Timestamp of successful pickup validation. */
+  pickup_validated_at?: string | null;
+  /** Authenticated user identifier that validated the pickup. */
+  pickup_validated_by?: string | null;
+  /** Independent fulfillment lifecycle state. */
+  fulfillment_status?: FulfillmentStatus | null;
+  /** ISO timestamp for a cancelled order. */
+  cancelled_at?: string | null;
 }

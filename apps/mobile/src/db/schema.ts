@@ -35,6 +35,11 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       slug TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL,
       stripe_account_id TEXT,
+      stripe_onboarding_status TEXT,
+      stripe_charges_enabled INTEGER NOT NULL DEFAULT 0,
+      stripe_payouts_enabled INTEGER NOT NULL DEFAULT 0,
+      stripe_details_submitted INTEGER NOT NULL DEFAULT 0,
+      stripe_default_currency TEXT NOT NULL DEFAULT 'eur',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -65,7 +70,22 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       refund_for_id TEXT REFERENCES transactions(id),
       fulfillment_type TEXT,
       delivery_address TEXT,
-      pickup_code TEXT
+      pickup_code TEXT,
+      payment_provider TEXT NOT NULL DEFAULT 'NONE',
+      payment_status TEXT NOT NULL DEFAULT 'NOT_REQUIRED',
+      payment_intent_id TEXT,
+      checkout_session_id TEXT,
+      stripe_customer_id TEXT,
+      amount_total REAL,
+      currency TEXT NOT NULL DEFAULT 'eur',
+      paid_at TEXT,
+      refund_status TEXT NOT NULL DEFAULT 'NONE',
+      pickup_token_hash TEXT,
+      pickup_token_expires_at TEXT,
+      pickup_validated_at TEXT,
+      pickup_validated_by TEXT,
+      fulfillment_status TEXT,
+      cancelled_at TEXT
     );
 
     -- Closures table: registers daily Z/X cash register balancing, counts, and discrepancies
@@ -112,6 +132,25 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
     await db.execAsync("ALTER TABLE products ADD COLUMN barcode TEXT;");
   }
 
+  const storeColumns = await db.getAllAsync<{ name: string }>(
+    "PRAGMA table_info(store);",
+  );
+  const missingStoreColumns: Record<string, string> = {
+    stripe_account_id: "TEXT",
+    stripe_onboarding_status: "TEXT",
+    stripe_charges_enabled: "INTEGER NOT NULL DEFAULT 0",
+    stripe_payouts_enabled: "INTEGER NOT NULL DEFAULT 0",
+    stripe_details_submitted: "INTEGER NOT NULL DEFAULT 0",
+    stripe_default_currency: "TEXT NOT NULL DEFAULT 'eur'",
+  };
+  for (const [columnName, definition] of Object.entries(missingStoreColumns)) {
+    if (!storeColumns.some((column) => column.name === columnName)) {
+      await db.execAsync(
+        `ALTER TABLE store ADD COLUMN ${columnName} ${definition};`,
+      );
+    }
+  }
+
   const transactionColumns = await db.getAllAsync<{ name: string }>(
     "PRAGMA table_info(transactions);",
   );
@@ -139,6 +178,32 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       await db.execAsync("ALTER TABLE transactions ADD COLUMN pickup_code TEXT;");
     } catch {
       // Ignored if column already exists
+    }
+  }
+  const missingTransactionColumns: Record<string, string> = {
+    payment_provider: "TEXT NOT NULL DEFAULT 'NONE'",
+    payment_status: "TEXT NOT NULL DEFAULT 'NOT_REQUIRED'",
+    payment_intent_id: "TEXT",
+    checkout_session_id: "TEXT",
+    stripe_customer_id: "TEXT",
+    amount_total: "REAL",
+    currency: "TEXT NOT NULL DEFAULT 'eur'",
+    paid_at: "TEXT",
+    refund_status: "TEXT NOT NULL DEFAULT 'NONE'",
+    pickup_token_hash: "TEXT",
+    pickup_token_expires_at: "TEXT",
+    pickup_validated_at: "TEXT",
+    pickup_validated_by: "TEXT",
+    fulfillment_status: "TEXT",
+    cancelled_at: "TEXT",
+  };
+  for (const [columnName, definition] of Object.entries(
+    missingTransactionColumns,
+  )) {
+    if (!transactionColumns.some((column) => column.name === columnName)) {
+      await db.execAsync(
+        `ALTER TABLE transactions ADD COLUMN ${columnName} ${definition};`,
+      );
     }
   }
 

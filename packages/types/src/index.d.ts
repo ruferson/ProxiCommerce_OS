@@ -2,6 +2,31 @@
  * Supported payment methods and transaction channels for ProxiCommerce OS.
  */
 export type TransactionType = "NFC" | "AI_SCAN" | "ONLINE_WEB" | "CASH";
+export type PaymentProvider = "NONE" | "STRIPE";
+export type PaymentStatus =
+    | "NOT_REQUIRED"
+    | "PENDING"
+    | "PAID"
+    | "FAILED"
+    | "CANCELLED"
+    | "PARTIALLY_REFUNDED"
+    | "REFUNDED";
+export type FulfillmentStatus =
+    | "PENDING"
+    | "PREPARING"
+    | "READY_FOR_PICKUP"
+    | "OUT_FOR_DELIVERY"
+    | "COMPLETED"
+    | "CANCELLED";
+export type RefundStatus = "NONE" | "PENDING" | "PARTIAL" | "FULL" | "FAILED";
+export interface StripeConnectStatus {
+    account_id?: string;
+    onboarding_status?: string;
+    charges_enabled: boolean;
+    payouts_enabled: boolean;
+    details_submitted: boolean;
+    default_currency: string;
+}
 /**
  * Supported fulfillment modalities for online storefront orders.
  */
@@ -15,6 +40,11 @@ export interface Store {
     slug: string;
     name: string;
     stripe_account_id?: string;
+    stripe_onboarding_status?: string;
+    stripe_charges_enabled?: boolean;
+    stripe_payouts_enabled?: boolean;
+    stripe_details_submitted?: boolean;
+    stripe_default_currency?: string;
     created_at?: string;
 }
 /**
@@ -57,6 +87,10 @@ export interface CreateWebOrderResult {
     fulfillment_type: FulfillmentType;
     pickup_code?: string | null;
     delivery_address?: string | null;
+    payment_status?: PaymentStatus;
+    fulfillment_status?: FulfillmentStatus;
+    checkout_session_id?: string | null;
+    payment_intent_id?: string | null;
     items: Array<{
         product_id: string;
         title: string;
@@ -118,4 +152,19 @@ export interface Transaction {
     delivery_address?: string | null;
     /** Verification code for in-store pickup if fulfillment_type === 'PICKUP' */
     pickup_code?: string | null;
+    payment_provider?: PaymentProvider;
+    payment_status?: PaymentStatus;
+    payment_intent_id?: string | null;
+    checkout_session_id?: string | null;
+    stripe_customer_id?: string | null;
+    amount_total?: number | null;
+    currency?: string;
+    paid_at?: string | null;
+    refund_status?: RefundStatus;
+    pickup_token_hash?: string | null;
+    pickup_token_expires_at?: string | null;
+    pickup_validated_at?: string | null;
+    pickup_validated_by?: string | null;
+    fulfillment_status?: FulfillmentStatus | null;
+    cancelled_at?: string | null;
 }
