@@ -10,7 +10,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "dev:mobile": "npm --prefix apps/mobile start",
+    "dev:mobile": "npm --prefix apps/mobile run dev",
     "dev:web": "npm --prefix apps/web run dev",
     "lint": "turbo run lint",
     "clean": "turbo run clean"

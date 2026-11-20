@@ -1,160 +1,187 @@
 # ProxiCommerce OS
 
-> **An offline-first point-of-sale and commerce platform for local merchants.**
->
-> **Development status: Work in progress.** The mobile app, web storefront, cloud
-> synchronization, and security configuration are all under active development.
-> Features and setup may change; this project is not production-ready.
+> Offline-first point-of-sale and commerce platform for local merchants.
+
+**Development status: work in progress.** The project is not production-ready.
+Database migrations, Stripe integrations, authentication providers, and native builds
+must be configured and validated before real users or payments are used.
 
 [![Expo SDK](https://img.shields.io/badge/Expo_SDK-58-000020?style=flat&logo=expo&logoColor=white)](https://expo.dev/)
-[![React Native](https://img.shields.io/badge/React_Native-0.88-61DAFB?style=flat&logo=react&logoColor=black)](https://reactnative.dev/)
+[![React Native](https://img.shields.io/badge/React_Native-0.88-61DAFB?style=flat&logo=react&logoColor=black)](https://reactnative.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000?style=flat&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![Turborepo](https://img.shields.io/badge/Turborepo-2-EF4444?style=flat&logo=turborepo&logoColor=white)](https://turbo.build/)
+[![Turborepo](https://img.shields.io/badge/Turborepo-2-EF4444?style=flat&logo=turbo.build)](https://turbo.build/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Status](https://img.shields.io/badge/status-in%20development-orange?style=flat)](#development-status)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat)](LICENSE)
 
 ---
 
-## 📖 Overview
+## Overview
 
-**ProxiCommerce OS** is an open-source project exploring an offline-first commerce platform for physical merchants, pop-up stores, and neighborhood retail. The **Turborepo monorepo** contains an Expo/React Native POS app, an early-stage Next.js storefront, and shared TypeScript domain types.
+ProxiCommerce OS is a Turborepo monorepo for small local merchants:
 
-The mobile app stores catalog and transaction data locally in SQLite. New users can opt in to automatic Supabase synchronization; manual Google Drive backups are a separate export/restore feature. The project is still evolving: cloud integration, security policies, and the web storefront need further development and validation before production use.
+- `apps/mobile`: Expo/React Native merchant POS.
+- `apps/web`: Next.js customer storefront.
+- `packages/types`: Shared TypeScript domain types.
+- `supabase`: SQL migrations and cloud configuration.
 
-## 🚧 Development Status
-
-All parts of this repository are in development. Expect incomplete workflows, changing interfaces, and setup requirements that may evolve. In particular:
-
-- The web storefront is currently a scaffold, not a complete customer shopping experience.
-- Supabase synchronization and storage require a configured project and matching schema.
-- The base Supabase schema contains permissive development policies. Apply the storefront migration below to replace them with store-owner policies before connecting real users or data.
-- Do not apply [`supabase/schema.sql`](supabase/schema.sql) to a database containing data without reviewing it first; it includes statements that drop and recreate tables.
-- Authentication email confirmation and other provider settings are configured in Supabase, not by the app.
-- AI receipt analysis is prepared for configurable multimodal providers but intentionally disabled by default. It makes no paid AI requests until you enable it and provide your own provider configuration.
+The mobile app keeps the operational catalog and transactions in local SQLite. Supabase
+can publish the public catalog and synchronize supported changes. Google Drive is a
+separate, manual, store-scoped backup mechanism.
 
 ---
 
-## ✨ Key Features
+## Current status
 
-### 📱 Mobile POS & Merchant Terminal (`apps/mobile`)
-- **Local-first data**: SQLite storage via `expo-sqlite`, with write-ahead logging and transaction support.
-- **Point-of-sale flow**: Product catalog, cart, cash checkout with change calculation, and card/NFC payment selection.
-- **Inventory and sales records**: Checkout updates local stock and stores transaction snapshots; sales history and refund flows are implemented locally.
-- **Cash closing**: Daily cash reconciliation and closure records can be stored locally and optionally queued for Supabase sync.
-- **Store accounts**: Supabase email/password authentication and merchant store onboarding are wired into the mobile app.
-- **Product & Inventory Management**:
-  - Add, edit, update stock, scan barcodes, and remove products.
-  - Capture product images locally; image upload requires the matching Supabase Storage bucket.
-- **Optional Supabase synchronization**: New accounts can opt in during registration. When enabled, supported product, transaction, and closure changes are sent to Supabase when online.
-- **Manual Google Drive backups**: Export or restore a store-scoped snapshot on demand; this is not device-to-device synchronization.
-- **AI receipt scanner (development)**: The receipt parsing service supports configurable OpenAI-compatible vision endpoints; analysis is off by default and requires your own provider and API key.
-- **POS interface**: Shared theme tokens and reusable UI components, including a bottom navigation bar.
+### Implemented
 
-#### Enabling AI receipt analysis for your own development build
+#### Mobile POS
 
-The scanner does not require Gemini. It is prepared to call any multimodal provider
-that supports the OpenAI-compatible `chat/completions` request format, image input,
-Bearer API-key authentication, and JSON-object responses. Configure these values in
-`apps/mobile/.env`:
+- Local SQLite database with WAL mode.
+- Product CRUD, stock, barcode, and local/remote image support.
+- Cash sales with change calculation.
+- Barcode scanning.
+- Sales history and refund flows.
+- Daily cash closing and reconciliation.
+- Store creation and Supabase email/password or Google authentication.
+- Manual Google Drive export and restore.
+- Realtime and incremental inbound synchronization.
+- Optional Supabase synchronization that can be enabled or disabled from the app.
+- One-tap upload of the complete local catalog to Supabase.
+- Configurable OpenAI-compatible receipt vision provider.
+- Receipt reconciliation and AI/receipt transaction registration, disabled by default.
 
-```dotenv
-EXPO_PUBLIC_AI_API_URL=https://your-provider.example/v1/chat/completions
-EXPO_PUBLIC_AI_MODEL=your-vision-model
-EXPO_PUBLIC_AI_API_KEY=your-api-key
-```
+#### Web storefront
 
-Then set `AI_RECEIPT_ANALYSIS_ENABLED` to `true` in
-[`ReceiptScannerModal.tsx`](apps/mobile/src/components/pos/ReceiptScannerModal.tsx)
-and restart Expo so it reloads the environment. If your chosen provider uses a
-different API format or authentication scheme, adapt
-[`aiReceiptService.ts`](apps/mobile/src/services/aiReceiptService.ts).
+- Dynamic `/store/[store_slug]` route.
+- Server-rendered initial catalog.
+- Live product and stock updates with Supabase Realtime.
+- Product search and category-free basic filtering.
+- Store-specific cart.
+- Pickup and delivery fulfillment forms.
+- Atomic `create_web_order` RPC order creation.
+- Stock decrement inside the database transaction.
+- Pickup code displayed after order confirmation.
+- PWA manifest and service-worker registration.
 
-**Security:** Expo's `EXPO_PUBLIC_` variables are embedded in the mobile app and
-can be extracted. Use them only for a private local development build with a
-restricted, budget-limited key. For a real/public deployment, implement a
-server-side proxy and keep the provider key on the server; each app operator
-should supply credentials through that protected backend rather than shipping a
-shared secret in the client.
+#### Supabase
 
-### 🌐 Next.js Web Storefront (`apps/web`)
-- Early Next.js 15 App Router scaffold; a complete storefront and cloud-connected catalog are not yet implemented.
+- Public stores and products.
+- Store-owner RLS policies.
+- Public product read access.
+- Product image storage bucket.
+- Atomic web-order RPC.
+- Realtime publication for transactions and products.
+- Phase 4 foundation migration for payment and fulfillment fields.
+- Phase 4 tables and RPCs for provider events, payment attempts, pickup validation,
+  fulfillment updates, and pickup state.
 
-### 📦 Shared Domain Models (`packages/types`)
-- Central source of truth for TypeScript interfaces (`Product`, `Store`, `CartItem`, `Transaction`, `TransactionType`).
+#### Phase 4 foundation
 
----
+The database foundation for paid orders is implemented, but Stripe payment processing
+itself is not complete.
 
-## 🏗️ Architecture & Data Flow
+Present:
 
-```
-                      ┌──────────────────────────────────────┐
-                      │          Turborepo Monorepo          │
-                      └──────────────────┬───────────────────┘
-                                         │
-                 ┌───────────────────────┴───────────────────────┐
-                 │                                               │
-                 ▼                                               ▼
-     ┌───────────────────────┐                       ┌───────────────────────┐
-     │      apps/mobile      │                       │       apps/web        │
-     │  (Expo SDK 58 / RN)   │                       │     (Next.js 15)      │
-     └───────────┬───────────┘                       └───────────┬───────────┘
-                 │                                               │
-                 ├───────────────────────┬───────────────────────┤
-                 │                       │                       │
-                 ▼                       ▼                       ▼
-     ┌───────────────────────┐ ┌───────────────────┐ ┌───────────────────────┐
-     │  Local SQLite Engine  │ │  @proxi/types     │ │   Supabase Cloud      │
-     │  - products           │ │  (Shared Domain   │ │   (Sync backend)      │
-     │  - transactions (WAL) │ │   Interfaces)     │ └───────────────────────┘
-     │  - store settings     │ └───────────────────┘
-     └───────────────────────┘
-```
+- Payment, fulfillment, refund, and pickup fields.
+- Stripe account fields on stores.
+- Provider-event and payment-attempt tables.
+- Idempotency-oriented event schema.
+- Fulfillment update RPC.
+- One-time pickup validation RPC.
+
+Not present:
+
+- Stripe Checkout hosted sessions.
+- Stripe Connect account onboarding.
+- Stripe Connect webhooks.
+- Apple Pay or Google Pay payment processing.
+- Stripe Terminal or real Tap to Pay.
+- Real QR image generation.
+- Stripe refunds.
+- Paid-order checkout enforcement.
+
+The existing mobile NFC option only registers a local `NFC` transaction. It does not
+open an NFC reader or call Stripe.
 
 ---
 
-## 📁 Repository Structure
+## Architecture
 
+```text
+┌──────────────────┐       ┌─────────────────────┐
+│ Expo/React Native │◄────►│ Supabase             │
+│ Local SQLite      │       │ Auth, PostgreSQL     │
+│ Catalog & POS     │       │ Realtime, Storage    │
+└────────┬─────────┘       └──────────┬──────────┘
+         │                            │
+         │ manual JSON backup         │ public catalog
+         ▼                            ▼
+┌──────────────────┐       ┌─────────────────────┐
+│ Google Drive     │       │ Next.js Storefront   │
+│ Store snapshot   │       │ Cart & web orders    │
+└──────────────────┘       └─────────────────────┘
 ```
-ProxiCommerce_OS/
-├── apps/
-│   ├── mobile/                    # Mobile POS App (Expo SDK 58, React Native 0.88)
-│   │   ├── src/
-│   │   │   ├── components/        # Atomic UI & domain-specific components
-│   │   │   │   ├── catalog/       # Product cards & creation/editing modals
-│   │   │   │   ├── layout/        # Header and bottom navigation
-│   │   │   │   ├── pos/           # Floating cart bar & checkout modals
-│   │   │   │   └── ui/            # Buttons, Cards, Inputs, IconButtons
-│   │   │   ├── db/                # SQLite initialization and SQL schema definitions
-│   │   │   ├── hooks/             # Auth, catalog, cart, and sync hooks
-│   │   │   ├── services/          # SQLite, Supabase sync, and storage services
-│   │   │   └── theme/             # Design tokens (colors, typography, spacing)
-│   │   ├── App.tsx                # Mobile entry point
-│   │   └── package.json
-│   └── web/                       # Early Next.js 15 storefront scaffold
-│       ├── src/app/               # Pages & layouts
-│       └── package.json
-├── packages/
-│   └── types/                     # Central TypeScript domain interfaces
-│       ├── src/index.ts           # Product, Transaction, Store definitions
-│       └── package.json
-├── package.json                   # Root monorepo configuration (npm workspaces)
-├── turbo.json                     # Turborepo task pipeline
-└── readme.md
+
+### Data ownership
+
+- **Mobile SQLite:** merchant operational source for local POS.
+- **Supabase:** public catalog, cloud synchronization, and web orders.
+- **Google Drive:** optional manual snapshot export and restore.
+- **Card processors:** not yet integrated.
+
+The web storefront reads products from Supabase. It does not read the mobile SQLite
+database or Google Drive.
+
+---
+
+## Repository structure
+
+```text
+apps/
+  mobile/
+    App.tsx
+    src/
+      components/
+      db/
+      hooks/
+      lib/
+      screens/
+      services/
+      theme/
+  web/
+    src/
+      app/
+      components/
+      lib/
+      types/
+packages/
+  types/
+    src/
+      index.ts
+      index.d.ts
+supabase/
+  migrations/
+  schema.sql
 ```
 
 ---
 
-## 🚀 Getting Started
+## Prerequisites
 
-### Prerequisites
+- Node.js 20 or newer.
+- npm 10 or newer.
+- A Supabase project.
+- Expo development tooling for the mobile app.
+- Google OAuth configuration if Google sign-in or Drive backup is required.
+- A physical iOS/Android device for native camera, NFC, or OAuth validation.
 
-Ensure you have installed:
-- **Node.js**: `20.x` or higher
-- **npm**: `10.x` or higher
-- **Expo Go** app installed on your physical iOS/Android device (or a simulator/emulator configured)
+`Expo Go` is sufficient for some local UI and SQLite workflows, but native integrations
+such as a future Stripe Terminal SDK require an Expo development build or custom native
+module.
 
-### 1. Clone & Install Dependencies
+---
+
+## Installation
 
 ```bash
 git clone https://github.com/ruferson/ProxiCommerce_OS.git
@@ -162,161 +189,274 @@ cd ProxiCommerce_OS
 npm install
 ```
 
-### 2. Configure Supabase (optional for local-only development)
-
-Copy the mobile environment template and provide a Supabase project URL and public anon key:
+Copy the environment templates:
 
 ```bash
 cp apps/mobile/.env.example apps/mobile/.env
+cp apps/web/.env.example apps/web/.env.local
 ```
 
-Set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in `apps/mobile/.env`.
-Without these values, cloud authentication and synchronization are unavailable; local
-development can still start. Configure the database and Storage bucket separately, and
-apply [`supabase/migrations/20261117110000_public_storefront.sql`](supabase/migrations/20261117110000_public_storefront.sql)
-after the base schema to enable the public storefront and atomic web-order RPC. The base
-[`supabase/schema.sql`](supabase/schema.sql) drops and recreates tables, so use it only
-when initializing an empty project after reviewing it. The migration replaces all RLS
-policies on the five application tables; merge any custom policies before applying it
-to a project that has policies not defined in this repository. Public store-directory
-clients should query the `public_stores` view, which omits private owner and payment
-metadata.
+Configure both Supabase public environment pairs:
 
-### 3. Optional Supabase sync and manual Google Drive backups
+```dotenv
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key
+```
 
-These are separate features:
+```dotenv
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-public-anon-key
+```
 
-- **Supabase sync** is optional and off by default at registration. If enabled, the app
-  queues supported changes and sends them to Supabase when internet is available. The
-  `Supabase` action in the bottom navigation opens the catalog replacement/conciliation
-  flow; the status badge in the header reports the automatic queue.
-- **Google Drive backup** is always a user-initiated export or restore. It does not keep
-  devices synchronized and does not change Supabase. It includes products, sales, and
-  cash closures for the active store only. Restoring replaces those records on this
-  device after confirmation. The JSON snapshot is not encrypted by the app; device-local
-  image files are not included (remote image URLs are kept and device-local image paths
-  are cleared in the exported snapshot).
+The public anon key is not an administrator key. The database must enforce access
+through RLS and authorized RPCs.
 
-#### Google Cloud Console
+---
 
-The supplied screenshots show the `ProxiCommerce-OS` project, an enabled Google Drive
-API, and existing Android and Web OAuth clients. Verify the following settings:
+## Supabase setup
 
-1. Keep **Google Drive API** enabled in **APIs & Services → Enabled APIs & services**.
-2. Configure the OAuth consent screen for the intended audience. While the app is in
-   Testing, add the Google accounts that will use it as test users. Request only the
-   `https://www.googleapis.com/auth/drive.file` scope used by the app.
-3. For the existing **Android** OAuth client, confirm the package name is
-   `com.proxicommerce.app`. Add the SHA-1 fingerprints for every signing certificate
-   used to install the app (local debug, EAS build, and Google Play app-signing
-   certificate if applicable). For EAS/Play fingerprints, use the credentials shown
-   by EAS and Play Console; do not assume the local debug certificate is sufficient.
-4. For the existing **Web application** OAuth client, use its client ID for
-   `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`. If using the Expo web build, configure the
-   authorized JavaScript origins and redirect URI for that actual web deployment.
-5. The screenshots do not show an **iOS** OAuth client. Create one with bundle ID
-   `com.proxicommerce.app` and use its client ID for
-   `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`. For Android, set
-   `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` to the Android client ID.
-6. Do not create an API key or put an OAuth client secret in the app. These are native
-   OAuth clients; the app requests a short-lived access token and stores no refresh
-   token. No service account is needed.
+Do not apply [`supabase/schema.sql`](supabase/schema.sql) to an existing database.
+It contains destructive drop-and-recreate statements intended only for controlled
+initialization of an empty database.
 
-Google sign-in for the app is handled by **Supabase OAuth with PKCE** and a system
-browser, on both Android and iOS. In Supabase Dashboard → Authentication → Sign In /
-Providers → Google, configure the **Web application** OAuth client ID and its client
-secret on the server. Add the Supabase callback URL shown on that page to the Web
-client's authorized redirect URIs. In Supabase Authentication → URL Configuration,
-allow `proxicommerce://auth/callback` as a redirect URL. The app exchanges the returned
-authorization code with Supabase; it does not receive or validate a Google ID token.
-Therefore this login flow does not need a reversed iOS Google client-ID scheme or
-native Google Sign-In SDK. Google Android/iOS client IDs in the app are used for the
-separate, direct-to-Drive backup authorization.
+Apply migrations in chronological order using the Supabase SQL Editor or Supabase CLI:
 
-For direct Google Drive authorization, Expo AuthSession returns to
-`com.proxicommerce.app:/oauthredirect`; Expo registers that scheme in the Android
-manifest and iOS `CFBundleURLTypes`. For Supabase sign-in, `proxicommerce` is registered
-as the app callback scheme on both platforms.
+1. [`20261117110000_public_storefront.sql`](supabase/migrations/20261117110000_public_storefront.sql)
+2. [`20261120120000_phase4_orders_payments.sql`](supabase/migrations/20261120120000_phase4_orders_payments.sql)
 
-After setting IDs in `apps/mobile/.env` (copy the names from
-[`apps/mobile/.env.example`](./apps/mobile/.env.example)), rebuild the native app with
-`npx expo run:android` or `npx expo run:ios`. OAuth client IDs are public identifiers,
-not secrets.
+After applying the migrations, notify PostgREST:
 
-Because `.env` files are gitignored, also add the required
-`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, and
-`EXPO_PUBLIC_GOOGLE_*_CLIENT_ID` values to the matching EAS development, preview, and
-production environments before cloud builds. The Google IDs are public; do not add a
-Google client secret to EAS build variables or the mobile app. The Google web client
-secret belongs only in the Supabase Google-provider settings.
+```sql
+NOTIFY pgrst, 'reload schema';
+```
 
-The access to Drive is restricted to files created or opened by this app through
-`drive.file`. The app lists only its own backup files tagged for the active store.
-Existing raw SQLite `.db` exports from older versions are not compatible with this
-store-scoped JSON backup format.
+Verify that the RPCs exist:
 
-### 4. Development Mode
+```sql
+select proname, pronargs
+from pg_proc
+where proname in (
+  'create_web_order',
+  'update_order_fulfillment',
+  'validate_pickup_order'
+);
+```
 
-Run all workspace applications (Mobile & Web) concurrently:
+Verify the payment columns:
+
+```sql
+select payment_status, fulfillment_status
+from public.transactions
+limit 1;
+```
+
+The storefront migration:
+
+- replaces RLS policies on stores, products, transactions, transaction items, and closures;
+- creates the public stores view;
+- creates the public product-images bucket;
+- creates `create_web_order`;
+- enables Realtime publication.
+
+Review all policies before production use.
+
+---
+
+## Supabase synchronization
+
+Supabase synchronization is optional and independent of Google Drive.
+
+### Enable from the mobile app
+
+The mobile app exposes a **Supabase synchronization** switch:
+
+1. Open the `Supabase desactivado` status in the header or `Activar nube` in the bottom
+   navigation.
+2. Activate synchronization.
+3. Confirm the complete local catalog upload.
+
+Activation:
+
+- stores `cloud_sync_enabled: true` in the authenticated user's metadata;
+- replaces the remote catalog with the active store's local catalog;
+- deletes remote-only products;
+- enables automatic queue synchronization for supported mutations.
+
+If synchronization is disabled, local writes continue to work but are not added to the
+remote sync queue.
+
+### Manual reconciliation
+
+When synchronization is active, the `Catalogo` action asks whether to download the remote
+catalog or upload the local catalog. These options are destructive and should be used
+with care.
+
+---
+
+## Google Drive backups
+
+Google Drive backup is:
+
+- manual;
+- store-scoped;
+- independent of Supabase synchronization;
+- not an encrypted database copy;
+- not device-to-device synchronization.
+
+The snapshot includes products, sales, and closures. Device-local image paths are cleared
+from exported JSON. Remote image URLs are retained.
+
+Restore replaces products, sales, and closures for the active store on the current
+device. It does not modify Supabase or another store.
+
+Configure the Google Drive API and OAuth clients described in
+`apps/mobile/.env.example`. Native OAuth requires rebuilds rather than merely changing
+variables in Expo Go.
+
+---
+
+## Authentication
+
+The mobile app supports:
+
+- Supabase email/password auth;
+- Google OAuth through Supabase PKCE;
+- automatic store resolution by `owner_auth_id`;
+- a store onboarding screen for accounts that do not yet own a store.
+
+Configure provider settings in the Supabase dashboard. The app callback must include:
+
+```text
+proxicommerce://auth/callback
+```
+
+Direct Google Drive authorization uses the platform-specific OAuth client and the Expo
+redirect URI. Never place a Google or Supabase service-secret in the mobile app.
+
+---
+
+## AI receipt scanning
+
+Receipt scanning is prepared for a multimodal provider compatible with the OpenAI
+`chat/completions` format. It is disabled by default.
+
+Optional mobile variables:
+
+```dotenv
+EXPO_PUBLIC_AI_API_URL=https://your-provider.example/v1/chat/completions
+EXPO_PUBLIC_AI_MODEL=your-vision-model
+EXPO_PUBLIC_AI_API_KEY=your-api-key
+```
+
+Set `AI_RECEIPT_ANALYSIS_ENABLED` to `true` in
+[`ReceiptScannerModal.tsx`](apps/mobile/src/components/pos/ReceiptScannerModal.tsx)
+before testing. The key is embedded in the mobile build because of `EXPO_PUBLIC_*`.
+Use a restricted local-development key only. A production implementation should proxy
+AI requests through a server-side function and keep the provider key out of the app.
+
+---
+
+## Stripe status
+
+Stripe is not production-integrated yet. Phase 4 foundation is present in
+`20261120120000_phase4_orders_payments.sql`, but Supabase Edge Functions and payment UI
+still need implementation.
+
+Before implementation, Stripe secrets must be stored in Supabase Edge Function secrets,
+for example:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_API_VERSION`
+
+Do not use `EXPO_PUBLIC_STRIPE_SECRET_KEY`, a Stripe secret key in Next.js client code,
+or a Supabase Service Role key in the PWA/mobile bundle.
+
+---
+
+## Development
+
+Start all applications:
 
 ```bash
 npm run dev
 ```
 
-Or run individual apps independently:
+Run only the mobile app:
 
-#### Run Mobile (Expo):
 ```bash
-cd apps/mobile
-npm run dev
-# Scan the terminal QR code with Expo Go (Android) or the Camera app (iOS)
+npm run dev:mobile
 ```
 
-#### Run Web Storefront (Next.js):
+Run only the web app:
+
 ```bash
-cd apps/web
-npm run dev
-# Open http://localhost:3000
+npm run dev:web
+```
+
+Open the storefront at:
+
+```text
+http://localhost:3000/store/<store_slug>
 ```
 
 ---
 
-## 🗄️ Local Data
-
-The mobile app initializes `proxi_commerce.db` with WAL mode enabled. Its local schema
-currently includes store settings, products, transactions, cash closures, the sync queue,
-and key-value storage for authentication persistence. The schema is defined and migrated
-in [`apps/mobile/src/db/schema.ts`](apps/mobile/src/db/schema.ts); it evolves with the app.
-
-The Supabase example schema is [`supabase/schema.sql`](supabase/schema.sql). Review its
-destructive reset statements and development-only access policies before applying it.
-
----
-
-## 🛠️ Available Scripts
+## Available scripts
 
 | Command | Description |
-| :--- | :--- |
-| `npm run dev` | Starts all apps concurrently via Turborepo |
-| `npm run build` | Builds all packages and web app for production |
-| `npm run lint` | Runs linter across all monorepo packages |
-| `npm run clean` | Cleans `.turbo`, cache, and build outputs |
+|---|---|
+| `npm run dev` | Start mobile and web applications. |
+| `npm run dev:mobile` | Start Expo only. |
+| `npm run dev:web` | Start Next.js only. |
+| `npm run build` | Build all workspaces through Turborepo. |
+| `npm run lint` | Run configured linters. |
+| `npm run clean` | Clean generated caches and build outputs. |
+
+Build targets can also be run independently:
+
+```bash
+npm run build --workspace=@proxi-commerce/mobile
+npm run build --workspace=@proxi-commerce/web
+```
 
 ---
 
-## 🤝 Contributing
+## Local data
 
-Contributions, feedback, and pull requests are welcome. As the project is in active
-development, please open an issue to discuss larger changes before starting work.
+The mobile database is `proxi_commerce.db`. Its schema is initialized and migrated in
+[`apps/mobile/src/db/schema.ts`](apps/mobile/src/db/schema.ts).
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'feat: Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Current mobile tables include:
+
+- `store`
+- `products`
+- `transactions`
+- `closures`
+- `sync_queue`
+- `app_kv_store`
+
+Transactions store a JSON snapshot of transaction items. The code also records refund,
+fulfillment, payment, and pickup fields where Phase 4 migration columns are available.
 
 ---
 
-## 📄 License
+## Known limitations
 
-Distributed under the **MIT License**. See `LICENSE` for more information.
+- No real Stripe Connect, Stripe Checkout, Terminal, or Tap to Pay.
+- The card/NFC POS option does not execute a payment.
+- No real QR payload/signature, only a textual pickup code.
+- No production dispute, refund, payout, or Stripe webhook workflow.
+- Apple Pay and Google Pay are not implemented.
+- The AI provider key must not be shipped in production builds.
+- Google Drive data is not encrypted by the app.
+- iCloud is not implemented.
+- Supabase migrations must be applied manually or through a deployment pipeline.
+- The repository has no configured automated test suite yet.
+- The app is not ready for real financial or personal-data use.
+
+---
+
+## License
+
+Distributed under the MIT License. See [`LICENSE`](LICENSE).
